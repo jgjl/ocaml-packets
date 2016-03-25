@@ -1,0 +1,88 @@
+OASISFormat: 0.4
+Name:        packets
+Version:     0.1.0
+Synopsis:    Packet parser library
+Authors:     Anil Madhavapeddy, Balraj Singh, Richard Mortier,
+             Nicolas Ojeda Bar, Thomas Gazagnaire, Vincent Bernardoff,
+             Magnus Skjegstad, Mindy Preston, Thomas Leonard, Jeremias Blendin
+License:     ISC
+Plugins:     META (0.4), DevFiles (0.4)
+BuildTools:  ocamlbuild
+PostConfCommand: ocaml postconf.ml
+
+Library packets
+  CompiledObject:     best
+  Path:               lib
+  Modules:            Checksum
+  Findlibname:        packets
+
+Library ethernet
+  CompiledObject:     best
+  Path:               lib
+  Findlibparent:      packets
+  Findlibname:        ethernet
+  Modules:            Ethernet
+  BuildDepends:       io-page,cstruct,cstruct.ppx
+
+Library arpv4
+  CompiledObject:     best
+  Path:               lib
+  Findlibparent:      packets
+  Findlibname:        arpv4
+  Modules:            Arpv4
+  BuildDepends:       packets,io-page,cstruct,cstruct.ppx
+
+Library ipv4
+  CompiledObject:     best
+  Path:               lib
+  Findlibparent:      packets
+  Findlibname:        ipv4
+  Modules:            Ipv4
+  BuildDepends:       packets,io-page,cstruct,cstruct.ppx
+
+Library ipv6
+  CompiledObject:     best
+  Path:               lib
+  Findlibparent:      packets
+  Findlibname:        arpv6
+  Modules:            Ipv6
+  BuildDepends:       packets,io-page,cstruct,cstruct.ppx
+
+Library icmpv4
+  CompiledObject:     best
+  Path:               lib
+  Findlibparent:      packets
+  Findlibname:        icmpv4
+  Modules:            Icmpv4
+  BuildDepends:       packets,io-page,cstruct,cstruct.ppx
+
+Library udp
+  CompiledObject:     best
+  Path:               lib
+  Findlibparent:      packets
+  Findlibname:        udp
+  Modules:            Udp
+  BuildDepends:       packets,io-page,cstruct,cstruct.ppx
+
+Library tcp
+  CompiledObject:     best
+  Path:               lib
+  Findlibparent:      packets
+  Findlibname:        tcp
+  Modules:            Tcp
+  BuildDepends:       packets,io-page,cstruct,cstruct.ppx
+
+#Executable test
+#  CompiledObject:     best
+#  Build$:             flag(tests)
+#  install:            false
+#  Path:               lib_test/
+#  MainIs:             test.ml
+#  Custom:             true
+#  BuildDepends:       alcotest, oUnit, lwt, lwt.unix, io-page.unix,
+#                      mirage-profile, mirage-flow, mirage-vnetif,
+#                      mirage-console.unix, mirage-clock-unix, tcpip.ethif, tcpip.tcp, pcap-format
+#
+#Test test
+#  Run$:               flag(tests)
+##  Command:            $test -q
