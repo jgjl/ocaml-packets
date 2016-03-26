@@ -13,7 +13,7 @@ PostConfCommand: ocaml postconf.ml
 Library packets
   CompiledObject:     best
   Path:               lib
-  Modules:            Checksum
+  Modules:            Checksum, Protocols
   Findlibname:        packets
 
 Library ethernet
@@ -30,7 +30,7 @@ Library arpv4
   Findlibparent:      packets
   Findlibname:        arpv4
   Modules:            Arpv4
-  BuildDepends:       packets,io-page,cstruct,cstruct.ppx
+  BuildDepends:       packets,io-page,cstruct,cstruct.ppx,stdint
 
 Library ipv4
   CompiledObject:     best
@@ -38,7 +38,7 @@ Library ipv4
   Findlibparent:      packets
   Findlibname:        ipv4
   Modules:            Ipv4
-  BuildDepends:       packets,io-page,cstruct,cstruct.ppx
+  BuildDepends:       packets,io-page,cstruct,cstruct.ppx,stdint
 
 Library ipv6
   CompiledObject:     best
@@ -46,7 +46,7 @@ Library ipv6
   Findlibparent:      packets
   Findlibname:        arpv6
   Modules:            Ipv6
-  BuildDepends:       packets,io-page,cstruct,cstruct.ppx
+  BuildDepends:       packets,io-page,cstruct,cstruct.ppx,stdint
 
 Library icmpv4
   CompiledObject:     best
@@ -54,7 +54,7 @@ Library icmpv4
   Findlibparent:      packets
   Findlibname:        icmpv4
   Modules:            Icmpv4
-  BuildDepends:       packets,io-page,cstruct,cstruct.ppx
+  BuildDepends:       packets,io-page,cstruct,cstruct.ppx,stdint
 
 Library udp
   CompiledObject:     best
@@ -62,7 +62,7 @@ Library udp
   Findlibparent:      packets
   Findlibname:        udp
   Modules:            Udp
-  BuildDepends:       packets,io-page,cstruct,cstruct.ppx
+  BuildDepends:       packets,io-page,cstruct,cstruct.ppx,stdint
 
 Library tcp
   CompiledObject:     best
@@ -70,7 +70,7 @@ Library tcp
   Findlibparent:      packets
   Findlibname:        tcp
   Modules:            Tcp
-  BuildDepends:       packets,io-page,cstruct,cstruct.ppx
+  BuildDepends:       packets,io-page,cstruct,cstruct.ppx,stdint
 
 #Executable test
 #  CompiledObject:     best

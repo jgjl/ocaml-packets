@@ -1,4 +1,7 @@
 module Ipv4_packet = struct
+
+  let protocol_no = Protocols.EtherType (Stdint.Uint16.of_int 0x0800)
+
   [%%cstruct
   type ipv4 = {
       hlen_version: uint8_t;
@@ -14,6 +17,7 @@ module Ipv4_packet = struct
     } [@@big_endian]
   ]
 
+  (*
   let int_to_protocol = function
     | 1  -> Some `ICMP
     | 6  -> Some `TCP
@@ -24,10 +28,12 @@ module Ipv4_packet = struct
     | `ICMP   -> 1
     | `TCP    -> 6
     | `UDP    -> 17
+    *)
 
   (* [checksum packet bufs] computes the IP checksum of [bufs]
       computing the pseudo-header from the actual header [packet]
       (which does NOT include the link-layer part). *)
+  (*
   let checksum =
     let pbuf = Io_page.to_cstruct (Io_page.get 1) in
     let pbuf = Cstruct.set_len pbuf 4 in
@@ -37,4 +43,5 @@ module Ipv4_packet = struct
       Cstruct.BE.set_uint16 pbuf 2 (Cstruct.lenv bufs);
       let src_dst = Cstruct.sub packet 12 (2 * 4) in
       Checksum.ones_complement_list (src_dst :: pbuf :: bufs)
+  *)
 end

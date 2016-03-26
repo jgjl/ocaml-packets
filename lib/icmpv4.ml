@@ -1,9 +1,67 @@
+
+
 module Icmpv4_packet = struct
 
   type data = Cstruct.t
 
-  let ip_protocol_no = 1
+  let protocol_no = Protocols.Internet (Stdint.Uint8.of_int 1)
 
+  (*
+   * Lazy start: use Wikipedia for determining data structures
+   * ICMP types without embedded data
+   * Timestamp:            Type 13
+   * Timestamp reply:      Type 14
+   * Address mask request: Type 17
+   * Address mask reply:   Type 18
+   *)
+
+  type fields =
+    | Type
+    | Code
+    | Csum
+
+  type optional_fields =
+    | Identifier
+    | Sequence_no
+    | Next_hop_mtu
+    | Payload
+
+  type field_list =
+    | Field of fields
+    | OptionalField of optional_fields
+    | Payload of Protocols.next_protocol
+
+  let sizeof_icmpv = 4
+
+  let get_field_list icmpv4_type icmpv4_code =
+    match icmpv4_type, icmpv4_code with
+    | 3, 4 -> [Field Type; Field Code; Field Csum; OptionalField Next_hop_mtu; Payload (Protocols.Protocol Ipv4.Ipv4_packet.protocol_no)]
+    | 3, _ -> [Field Type; Field Code; Field Csum; Payload (Protocols.Protocol Ipv4.Ipv4_packet.protocol_no)]
+    | 0, 0 | 8, 0 -> [Field Type; Field Code; Field Csum; OptionalField Identifier; OptionalField Sequence_no; Payload Protocols.Unknown]
+    | _, _ -> [Field Type; Field Code; Field Csum]
+
+  let get_field field v =
+    match field with
+    | Type -> Cstruct.get_uint8 v 0
+    | Code -> Cstruct.get_uint8 v 1
+    | Csum -> Cstruct.BE.get_uint16 v 2
+
+  let get_optional_field icmpv4_type icmpv4_code field v =
+    match field, icmpv4_type, icmpv4_code with
+    | Identifier, 0, 0 | Identifier, 8, 0 -> Some (Cstruct.BE.get_uint16 v 4)
+    | Sequence_no, 0, 0 | Sequence_no, 8, 0 -> Some (Cstruct.BE.get_uint16 v 6)
+    | Next_hop_mtu, 3, 4 -> Some (Cstruct.BE.get_uint16 v 6)
+    | _, _, _ -> None
+
+  let get_payload icmpv4_type icmpv4_code v =
+    match icmpv4_type, icmpv4_code with
+    (*| Stdint.Uint8.zero, Stdint.Uint8.zero -> Cstruct.shift v 4*)
+    | 3,_ -> Protocols.Protocol Ipv4.Ipv4_packet.protocol_no, Some (Cstruct.shift v 8)
+    | 8,0 | 0,0 -> Protocols.Unknown, Some (Cstruct.shift v 8)
+    | _, _ -> Protocols.None, None
+end
+
+module Icmpv4_parser = struct
   (*
    * Implemented ICMPv4 types
    *
@@ -26,36 +84,40 @@ module Icmpv4_packet = struct
    *   1	Fragment reassembly time exceeded.
   *)
 
-  [%%cstruct
-  type icmpv4 = {
-    ty: uint8_t;
-    code: uint8_t;
-    csum: uint16_t;
-  } [@@big_endian]
-  ]
+  type icmpv4_unreachable = {
+    code: Stdint.uint8;
+    ip_orig_src: Stdint.uint32;
+    ip_orig_dst: Stdint.uint32;
+    ip_orig_proto: Stdint.uint8;
+  }
 
-  [%%cstruct
+  type icmpv4_unreachable_too_big = {
+    code: Stdint.uint8;
+    next_hop_mtu: Stdint.uint8;
+    ip_orig_src: Stdint.uint32;
+    ip_orig_dst: Stdint.uint32;
+    ip_orig_proto: Stdint.uint8
+    }
+
   type icmpv4_echo = {
-    identifier: uint16_t;
-    sequence_no: uint16_t;
-  } [@@big_endian]
-  ]
+    identifier: int;
+    sequence_number: int;
+    data: Cstruct.t;
+  }
 
-  [%%cstruct
   type icmpv4_time_exceeded = {
-    unused: uint32_t;
-  } [@@big_endian]
-  ]
+    code: int;
+    ip_orig_src: Stdint.uint32;
+    ip_orig_dst: Stdint.uint32;
+    ip_orig_proto: int
+  }
 
-  [%%cstruct
-  type icmpv4_dst_unreachable = {
-    unused: uint16_t;
-    next_hop_mtu: uint16_t;
-  } [@@big_endian]
-  ]
-end
-
-module Icmpv4_parser = struct
+  type icmpv4_msg =
+    | Dst_unreachable of icmpv4_unreachable * Cstruct.t
+    | Dst_unreachable_too_big of icmpv4_unreachable_too_big * Cstruct.t
+    | Echo_request of icmpv4_echo
+    | Echo_reply of icmpv4_echo
+    | Time_exceeded of icmpv4_time_exceeded * Cstruct.t
 
   let icmpv4_dst_unreachable code =
     match code with
@@ -76,43 +138,4 @@ module Icmpv4_parser = struct
     | 14 -> "Host Precedence Violation"
     | 15 -> "Precedence cutoff in effect"
     | code_no -> "Unknown ICMP code: " ^ string_of_int(code)
-
-  let parse_echo buf =
-    let code = Icmpv4_packet.get_icmpv4_code buf
-    in let echo_buf = Cstruct.shift buf Icmpv4_packet.sizeof_icmpv4
-    in let echo_id = Icmpv4_packet.get_icmpv4_echo_identifier echo_buf
-    in let seq_no = Icmpv4_packet.get_icmpv4_echo_sequence_no echo_buf
-    in let data = Cstruct.shift echo_buf Icmpv4_packet.sizeof_icmpv4_echo
-    in
-    (code, echo_id, seq_no, data)
-
-  let parse_dst_unreachable buf =
-    let code = Icmpv4_packet.get_icmpv4_code buf in
-    let dst_unreach_buf = Cstruct.shift buf Icmpv4_packet.sizeof_icmpv4 in
-    let next_hop_mtu = Icmpv4_packet.get_icmpv4_dst_unreachable_next_hop_mtu dst_unreach_buf in
-    let embed_packet = Cstruct.shift dst_unreach_buf Icmpv4_packet.sizeof_icmpv4_dst_unreachable in
-    let ip_orig_proto = Ipv4.Ipv4_packet.get_ipv4_proto embed_packet in
-    let ip_orig_src = Ipv4.Ipv4_packet.get_ipv4_src embed_packet in
-    let ip_orig_dst = Ipv4.Ipv4_packet.get_ipv4_dst embed_packet in
-    let ip_orig_l4_data = Cstruct.shift embed_packet Ipv4.Ipv4_packet.sizeof_ipv4 in
-    (code, next_hop_mtu, ip_orig_src, ip_orig_dst, ip_orig_proto, ip_orig_l4_data)
-
-  let parse_time_exceeded buf =
-    let code = Icmpv4_packet.get_icmpv4_code buf in
-    let dst_unreach_buf = Cstruct.shift buf Icmpv4_packet.sizeof_icmpv4 in
-    let embed_packet = Cstruct.shift dst_unreach_buf Icmpv4_packet.sizeof_icmpv4_time_exceeded in
-    let ip_orig_proto = Ipv4.Ipv4_packet.get_ipv4_proto embed_packet in
-    let ip_orig_src = Ipv4.Ipv4_packet.get_ipv4_src embed_packet in
-    let ip_orig_dst = Ipv4.Ipv4_packet.get_ipv4_dst embed_packet in
-    let ip_orig_l4_data = Cstruct.shift embed_packet Ipv4.Ipv4_packet.sizeof_ipv4 in
-    (code, ip_orig_src, ip_orig_dst, ip_orig_proto, ip_orig_l4_data)
-
-  (*
-   * Lazy start: use Wikipedia for determining data structures
-   * ICMP types without embedded data
-   * Timestamp:            Type 13
-   * Timestamp reply:      Type 14
-   * Address mask request: Type 17
-   * Address mask reply:   Type 18
-   *)
 end

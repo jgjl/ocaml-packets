@@ -1,7 +1,7 @@
 PKG cstruct
 PKG cstruct.ppx
 PKG io-page
-PKG uint
+PKG stdint
 PKG oUnit
 PKG alcotest
 PKG pcap-format
