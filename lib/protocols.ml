@@ -6,5 +6,5 @@ type protocol =
 type next_protocol =
   | None
   | Unknown
-  | ProtocolOption
+  | Protocol_part
   | Protocol of protocol
