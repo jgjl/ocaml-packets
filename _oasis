@@ -56,6 +56,14 @@ Library icmpv4
   Modules:            Icmpv4
   BuildDepends:       packets,io-page,cstruct,cstruct.ppx,stdint
 
+Library icmpv4_v2
+  CompiledObject:     best
+  Path:               lib
+  Findlibparent:      packets
+  Findlibname:        icmpv4_v2
+  Modules:            Icmpv4_v2
+  BuildDepends:       packets,io-page,cstruct,cstruct.ppx,stdint
+
 Library udp
   CompiledObject:     best
   Path:               lib
