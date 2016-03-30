@@ -18,27 +18,26 @@ type ty =
 [@@uint8_t]
 ]
 
-  type field_value =
-    | Get
-    | None
-    | Uint8 of Cstruct.uint8
-    | Uint16 of Cstruct.uint16
-    | Uint32 of Cstruct.uint32
+type field_value =
+  | Get
+  | None
+  | Uint8 of Cstruct.uint8
+  | Uint16 of Cstruct.uint16
+  | Uint32 of Cstruct.uint32
 
-  type field = {
-    name: string;
-    offset: int;
-    size: int;
-  }
+type field = {
+  name: string;
+  offset: int;
+  size: int;
+}
 
-  type icmpv4_type = {
-    name: string;
-    ty: ty;
-    max_code: int;
-    fields: field list;
-    length: int;
-    next_part: Protocols.next_protocol;
-  }
+type icmpv4_type = {
+  name: string;
+  max_code: int;
+  fields: field list;
+  length: int;
+  next_part: Protocols.next_protocol;
+}
 
 
 module WireV2 = struct
@@ -53,80 +52,75 @@ module WireV2 = struct
   } [@@big_endian]
   ]
 
-  let field_identifier = {name="identifier"; offset=0; size=2}
-  let field_sequence_no = {name="sequence number"; offset=0; size=2}
-  let field_next_hop_mtu = {name="identifier"; offset=2; size=2}
-  let field_pointer = {name="pointer"; offset=0; size=1}
-  let ipv4_address = {name="sequence number"; offset=0; size=2}
-  let field_orig_ts = {name="originate timestamp";offset=4;size=4}
-  let field_rx_ts = {name="receive timestamp";offset=8;size=4}
-  let field_tx_ts = {name="transmit timestamp";offset=4;size=4}
-
   let get_type ty =
+    let identifier =    {offset=0; size=2; name="identifier"} in
+    let sequence_no =   {offset=0; size=2; name="sequence number"} in
+    let next_hop_mtu =  {offset=2; size=2; name="next hop mtu"} in
+    let pointer =       {offset=0; size=1; name="pointer"} in
+    let address =       {offset=0; size=2; name="sequence number"} in
+    let orig_ts =       {offset=4; size=4; name="originate timestamp"} in
+    let rx_ts =         {offset=8; size=4; name="receive timestamp"} in
+    let tx_ts =         {offset=4; size=4; name="transmit timestamp"} in
+    let ad_cnt =        {offset=0; size=1; name="advertisement count"} in
+    let ad_entry_size = {offset=1; size=1; name="advertisement entry size"} in
+    let lifetime =      {offset=2; size=2; name="lifetime"} in
+    let rtr_addr =      {offset=4; size=4; name="router address"} in
+    let rtr_pref_lvl =  {offset=8; size=4; name="preference level"} in
+    let ipproto = Protocols.Protocol Ipv4.Ipv4_packet.protocol_no in
     match ty with
-    | ECHO_REPLY ->
-      (* Type=0; Code=0 *)
-      {name="Echo reply";
-      ty=ECHO_REPLY; max_code=0; length=4;
-      fields=[field_identifier; field_sequence_no];
-      next_part=Protocols.Unknown}
-    | DESTINATION_UNREACHABLE ->
-      (* Type=3; Code=0-15 *)
-      {name="Destination unreachable";
-      ty=DESTINATION_UNREACHABLE; max_code=15; length=4;
-      fields=[field_next_hop_mtu];
-      next_part=Protocols.Protocol Ipv4.Ipv4_packet.protocol_no}
-    | SOURCE_QUENCH ->
-      (* Type=4; Code=0 *)
-      {name="Unused";
-      ty=SOURCE_QUENCH; max_code=0; length=4;
-      fields=[];
-      next_part=Protocols.Protocol Ipv4.Ipv4_packet.protocol_no}
-    | REDIRECT_MESSAGE ->
-      (* Type=5; Code=0-3 *)
-      {name="Redirect message";
-      ty=REDIRECT_MESSAGE; max_code=3; length=4;
-      fields=[];
-      next_part=Protocols.Protocol Ipv4.Ipv4_packet.protocol_no}
-    | ECHO_REQUEST ->
-      (* Type=8; Code=0 *)
-      {name="Echo reply";
-      ty=ECHO_REQUEST; max_code=0; length=4;
-      fields=[field_identifier; field_sequence_no];
-      next_part=Protocols.Unknown}
-    | TIME_EXCEEDED ->
-      (* Type=11; Code=0,1 *)
-      {name="Time exceeded";
-      ty=TIME_EXCEEDED; max_code=1; length=4;
-      fields=[];
-      next_part=Protocols.Protocol Ipv4.Ipv4_packet.protocol_no}
-    | BAD_IP_HEADER ->
-      (* Type=12; Code=0-2 *)
-      {name="Bad IP header";
-      ty=BAD_IP_HEADER; max_code=2; length=4;
-      fields=[field_pointer];
-      next_part=Protocols.Protocol Ipv4.Ipv4_packet.protocol_no}
-    | TIMESTAMP ->
-      (* Type=13; Code=0 *)
-      {name="Timestamp";
-      ty=TIMESTAMP; max_code=0; length=4;
-      fields=[field_identifier;field_sequence_no;field_orig_ts;field_rx_ts;field_tx_ts];
-      next_part=Protocols.None}
-    | TIMESTAMP_REPLY ->
-      (* Type=14; Code=0 *)
-      {name="Timestamp reply";
-      ty=TIMESTAMP_REPLY; max_code=0; length=4;
-      fields=[field_identifier;field_sequence_no;field_orig_ts;field_rx_ts;field_tx_ts];
-      next_part=Protocols.None}
+    | ECHO_REPLY -> {name="Echo reply";
+                    max_code=0; length=4;
+                    fields=[identifier; sequence_no;];
+                    next_part=Protocols.Unknown}
+    | DESTINATION_UNREACHABLE -> {name="Destination unreachable";
+                    max_code=15; length=4;
+                    fields=[next_hop_mtu];
+                    next_part=ipproto}
+    | SOURCE_QUENCH -> {name="Unused";
+                    max_code=0; length=4;
+                    fields=[];
+                    next_part=ipproto}
+    | REDIRECT_MESSAGE -> {name="Redirect message";
+                    max_code=3; length=4;
+                    fields=[address];
+                    next_part=ipproto}
+    | ECHO_REQUEST -> {name="Echo reply";
+                    max_code=0; length=4;
+                    fields=[identifier; sequence_no];
+                    next_part=Protocols.Unknown}
+    | ROUTER_ADVERTISEMENT -> {name="Router advertisement";
+                    max_code=16; length=12;
+                    fields=[ad_cnt; ad_entry_size; lifetime; rtr_addr; rtr_pref_lvl];
+                    next_part=Protocols.None}
+    | ROUTER_SOLICITATION -> {name="Router solicitation";
+                    max_code=0; length=4;
+                    fields=[];
+                    next_part=Protocols.None}
+    | TIME_EXCEEDED -> {name="Time exceeded";
+                    max_code=1; length=4;
+                    fields=[];
+                    next_part=ipproto}
+    | BAD_IP_HEADER -> {name="Bad IP header";
+                    max_code=2; length=4;
+                    fields=[pointer];
+                    next_part=ipproto}
+    | TIMESTAMP -> {name="Timestamp";
+                    max_code=0; length=16;
+                    fields=[identifier;sequence_no;orig_ts;rx_ts;tx_ts];
+                    next_part=Protocols.None}
+    | TIMESTAMP_REPLY -> {name="Timestamp reply";
+                    max_code=0; length=16;
+                    fields=[identifier;sequence_no;orig_ts;rx_ts;tx_ts];
+                    next_part=Protocols.None}
 
-  let get_payload ty v =
-    let shiftlen = sizeof_icmpv4 + ty.length in
+  let get_payload ty_def v =
+    let shiftlen = sizeof_icmpv4 + ty_def.length in
     if (Cstruct.len v) > shiftlen
     then Some (Cstruct.shift v shiftlen)
     else None
 
   let is_valid v ty code tys =
-    let type_code_ok = ty <= tys.ty && code <= tys.max_code
+    let type_code_ok = ty <= ty && code <= tys.max_code
     in
     let length_ok = (sizeof_icmpv4 + tys.length) <= Cstruct.len v in
     (* let csum_ok = ... *)
