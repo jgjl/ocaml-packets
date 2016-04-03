@@ -13,8 +13,13 @@ Two recent papers on packet format description  where identified:
  - P4: Bosshart, Pat, et al. "P4: Programming protocol-independent packet processors." ACM SIGCOMM Computer Communication Review 44.3 (2014): 87-95.
  - Nail: Bangert, Julian, and Nickolai Zeldovich. "Nail: A practical tool for parsing and generating data formats." 11th USENIX Symposium on Operating Systems Design and Implementation (OSDI 14). 2014.
 
-P4 focusses on packet processing in general and gives less attention to packet parsing. The P4 source code is available on github. However, it does not seem to include "interesting" packet formats with options and variable length fields. In general, while the approach is interesting, its API/DSL is not convincing for out use case.
+P4 focusses on packet processing in general and gives less attention to packet parsing. However, the generic approach of P4 enables the handling of complex packet formats as well. An example for parsing TLV fields in given in [1].
 
-Nail aims solely at providing an API/DSL for describing packet formats. Furthermore, the examples include complex packet formats such as dns, including optional fields, variable number of fields and field deconding/encoding.
+Nail aims solely at providing an API/DSL for describing packet formats. The examples include complex packet formats such as dns, including optional fields, variable number of fields and field deconding/encoding [2].
 
 Nail seems more promising, let's see if this approach can be build with Ocaml and ppx.
+
+Code references:
+[1] https://github.com/p4lang/tutorials/blob/master/examples/TLV_parsing/p4src/TLV_parsing.p4
+[2] https://github.com/jbangert/nail/blob/master/examples/dns/dns.nail
+
