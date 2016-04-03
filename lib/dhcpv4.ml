@@ -21,7 +21,7 @@ let some_or_invalid f v = match f v with
   | Some x -> x
   | None -> invalid_arg ("Invalid value " ^ (string_of_int v))
 
-[%%cstruct
+  [%%cstruct
 type dhcp = {
   op:     uint8_t;
   htype:  uint8_t;
@@ -39,11 +39,11 @@ type dhcp = {
   file:   uint8_t   [@len 128];
 } [@@big_endian]
 ]
-[%%cenum
+  [%%cenum
 type op =
   | BOOTREQUEST [@id 1]
   | BOOTREPLY   [@id 2]
-[@@uint8_t][@@sexp]]
+  [@@uint8_t][@@sexp]]
 
 let int_to_op_exn v = some_or_invalid int_to_op v
 
@@ -64,7 +64,7 @@ type msgtype =
   | DHCPLEASEACTIVE
   | DHCPBULKLEASEQUERY
   | DHCPLEASEQUERYDONE
-[@@uint8_t][@@sexp]]
+  [@@uint8_t][@@sexp]]
 
 let int_to_msgtype_exn v = some_or_invalid int_to_msgtype v
 
@@ -326,7 +326,7 @@ type option_code =
   | RESERVED_253 [@id 253]
   | RESERVED_254 [@id 254]
   | END [@id 255]
-[@@uint8_t][@@sexp]]
+  [@@uint8_t][@@sexp]]
 
 let int_to_option_code_exn v = some_or_invalid int_to_option_code v
 
@@ -537,54 +537,54 @@ let options_of_buf buf buf_len =
     | PAD -> padding ()
     | END -> options
     | _ -> (* Has len:body, generate the get functions *)
-      let len = Cstruct.get_uint8 buf 1 in
-      let body = Cstruct.shift buf 2 in
-      let bad_len = Printf.sprintf "Malformed len %d in option %d" len code in
-      (* discard discards the option from the resulting list *)
-      let discard () = collect (Cstruct.shift body len) options in
-      (* take includes the option in the resulting list *)
-      let take op = collect (Cstruct.shift body len) (op :: options) in
-      let get_8 () = if len <> 1 then invalid_arg bad_len else
-          Cstruct.get_uint8 body 0 in
-      let get_8_list () =
-        let rec loop offset octets =
-          if offset = len then octets else
-            let octet = Cstruct.get_uint8 body offset in
-            loop (succ offset) (octet :: octets)
+        let len = Cstruct.get_uint8 buf 1 in
+        let body = Cstruct.shift buf 2 in
+        let bad_len = Printf.sprintf "Malformed len %d in option %d" len code in
+        (* discard discards the option from the resulting list *)
+        let discard () = collect (Cstruct.shift body len) options in
+        (* take includes the option in the resulting list *)
+  let take op = collect (Cstruct.shift body len) (op :: options) in
+  let get_8 () = if len <> 1 then invalid_arg bad_len else
+    Cstruct.get_uint8 body 0 in
+  let get_8_list () =
+    let rec loop offset octets =
+      if offset = len then octets else
+        let octet = Cstruct.get_uint8 body offset in
+        loop (succ offset) (octet :: octets)
         in
         if len <= 0 then invalid_arg bad_len else
           List.rev (loop 0 [])
-      in
+    in
       let get_bool () = match (get_8 ()) with
         | 1 -> true
         | 0 -> false
         | v -> invalid_arg ("invalid value for bool: " ^ string_of_int v)
-      in
+  in
       let get_16 () = if len <> 2 then invalid_arg bad_len else
-          Cstruct.BE.get_uint16 body 0 in
+        Cstruct.BE.get_uint16 body 0 in
       let get_16_list () =
         let rec loop offset shorts =
           if offset = len then shorts else
             let short = Cstruct.BE.get_uint16 body offset in
             loop ((succ offset) * 2) (short :: shorts)
-        in
+            in
         if ((len mod 2) <> 0) || len <= 0 then invalid_arg bad_len else
           List.rev (loop 0 [])
-      in
+        in
       let get_32 () = if len <> 4 then invalid_arg bad_len else
-          Cstruct.BE.get_uint32 body 0 in
+        Cstruct.BE.get_uint32 body 0 in
       let get_32_list ?(min_len=4) () =
         let rec loop offset longs =
           if offset = len then longs else
             let long = Cstruct.BE.get_uint32 body offset in
             loop ((succ offset) * 4) (long :: longs)
-        in
+            in
         if ((len mod 4) <> 0) || len < min_len then invalid_arg bad_len else
           List.rev (loop 0 [])
-      in
+        in
       (* Fetch ipv4s from options *)
       let get_ip () = if len <> 4 then invalid_arg bad_len else
-          Ipaddr.V4.of_int32 (get_32 ()) in
+        Ipaddr.V4.of_int32 (get_32 ()) in
       let get_ip_list ?(min_len=4) () =
         List.map Ipaddr.V4.of_int32 (get_32_list ~min_len:min_len ())
       in
@@ -593,31 +593,31 @@ let options_of_buf buf buf_len =
           | ip1 :: ip2 :: tl -> (ip1, ip2) :: tuples
           | ip :: [] -> invalid_arg bad_len
           | [] -> List.rev tuples
-        in
-        loop (get_ip_list ~min_len:8 ()) []
       in
+        loop (get_ip_list ~min_len:8 ()) []
+        in
       (* Get a list of ip pairs *)
       let get_prefix_list () =
         if ((len mod 8) <> 0) || len <= 0 then
           invalid_arg bad_len
-        else
-          List.map (function
-              | addr, mask -> try
-                  Ipaddr.V4.Prefix.of_netmask mask addr
-                with
+      else
+        List.map (function
+          | addr, mask -> try
+            Ipaddr.V4.Prefix.of_netmask mask addr
+        with
                   Ipaddr.Parse_error (a, b) -> invalid_arg (a ^ ": " ^ b))
-            (get_ip_tuple_list ())
+        (get_ip_tuple_list ())
       in
       let get_string () =  if len < 1 then invalid_arg bad_len else
-          Cstruct.copy body 0 len
+        Cstruct.copy body 0 len
       in
       let get_client_id () =  if len < 2 then invalid_arg bad_len else
-          let s = Cstruct.copy body 1 (len - 1) in
-          if (Cstruct.get_uint8 body 0) = 1 && len = 7 then
-            Hwaddr (Macaddr.of_bytes_exn s)
-          else
-            Id s
-      in
+        let s = Cstruct.copy body 1 (len - 1) in
+        if (Cstruct.get_uint8 body 0) = 1 && len = 7 then
+          Hwaddr (Macaddr.of_bytes_exn s)
+      else
+        Id s
+        in
       match code with
       | 0 ->   padding ()
       | 1 ->   take (Subnet_mask (get_ip ()))
@@ -699,7 +699,7 @@ let options_of_buf buf buf_len =
       | 119->  take (Domain_search (get_string ()))
       | 252->  take (Web_proxy_auto_disc (get_string ()))
       | code -> discard ()
-  in
+      in
   (* Extends options if it finds an Option_overload *)
   let extend buf options =
     let rec search = function
@@ -707,7 +707,7 @@ let options_of_buf buf buf_len =
       | opt :: tl -> match opt with
         | Option_overload v -> Some v
         | _ -> search tl
-    in
+in
     match search options with
     | None -> options           (* Nothing to do, identity function *)
     | Some v -> match v with
@@ -716,28 +716,28 @@ let options_of_buf buf buf_len =
       | 3 -> collect (get_dhcp_file buf) options |> (* OMG both *)
              collect (get_dhcp_sname buf)
       | _ -> invalid_arg ("Invalid overload code: " ^ string_of_int v)
-  in
+in
   (* Handle a pkt with no options *)
   if buf_len = sizeof_dhcp then
     []
-  else
-    (* Look for magic cookie *)
-    let cookie = Cstruct.BE.get_uint32 buf sizeof_dhcp in
-    if cookie <> 0x63825363l then
-      invalid_arg "Invalid cookie";
+        else
+          (* Look for magic cookie *)
+          let cookie = Cstruct.BE.get_uint32 buf sizeof_dhcp in
+          if cookie <> 0x63825363l then
+            invalid_arg "Invalid cookie";
     let options_start = Cstruct.shift buf (sizeof_dhcp + 4) in
     (* Jump over cookie and start options, also extend them if necessary *)
     collect options_start [] |>
     extend buf |>
     List.rev
 
-let buf_of_options sbuf options =
-  let open Cstruct in
-  let put_code code buf = set_uint8 buf 0 code; shift buf 1 in
-  let put_len len buf = if len > 255 then
+  let buf_of_options sbuf options =
+    let open Cstruct in
+    let put_code code buf = set_uint8 buf 0 code; shift buf 1 in
+    let put_len len buf = if len > 255 then
       invalid_arg ("option len is too big: " ^ (string_of_int len));
     set_uint8 buf 0 len; shift buf 1
-  in
+    in
   let put_8 v buf = set_uint8 buf 0 v; shift buf 1 in
   let put_16 v buf = BE.set_uint16 buf 0 v; shift buf 2 in
   let put_32 v buf = BE.set_uint32 buf 0 v; shift buf 4 in
@@ -762,21 +762,21 @@ let buf_of_options sbuf options =
     let buf = put_code code buf |> put_len len in
     blit_from_string v 0 buf 0 len;
     shift buf len
-  in
+    in
   let put_client_id code v buf =
     let htype, s = match v with
       | Hwaddr mac -> (1, Macaddr.to_bytes mac)
       | Id id -> (0, id)
-    in
+  in
     let len = String.length s in
     let buf = put_code code buf |> put_len (succ len) |> put_8 htype in
     blit_from_string s 0 buf 0 len;
     shift buf len
-  in
+    in
   let make_listf f len code l buf =
     let buf = put_code code buf |> put_len (len * (List.length l)) in
     List.fold_left f buf l
-  in
+    in
   let put_coded_8_list = make_listf (fun buf x -> put_8 x buf) 1 in
   let put_coded_16_list = make_listf (fun buf x -> put_16 x buf) 2 in
   (* let put_coded_32_list = make_listf (fun buf x -> put_32 x buf) 4 in *)
@@ -841,7 +841,7 @@ let buf_of_options sbuf options =
     | Message_type mt -> put_coded_8 53 (msgtype_to_int mt) buf (* code 53 *)
     | Server_identifier si -> put_coded_ip 54 si buf          (* code 54 *)
     | Parameter_requests pr ->
-      put_coded_8_list 55
+        put_coded_8_list 55
         (List.map option_code_to_int pr) buf  (* code 55 *)
     | Message m -> put_coded_bytes 56 m buf                   (* code 56 *)
     | Max_message mm -> put_coded_16 57 mm buf                (* code 57 *)
@@ -947,24 +947,24 @@ let buf_of_options sbuf options =
   match options with
   | [] -> sbuf
   | _ ->
-    let () = BE.set_uint32 sbuf 0 0x63825363l in       (* put cookie *)
-    let sbuf = shift sbuf 4 in
-    let ebuf = List.fold_left buf_of_option sbuf options in
-    set_uint8 ebuf 0 (option_code_to_int END); shift ebuf 1
+      let () = BE.set_uint32 sbuf 0 0x63825363l in       (* put cookie *)
+      let sbuf = shift sbuf 4 in
+      let ebuf = List.fold_left buf_of_option sbuf options in
+      set_uint8 ebuf 0 (option_code_to_int END); shift ebuf 1
 
-let pkt_of_buf buf len =
-  let wrap () =
-    let open Wire_structs in
-    let open Ipv4_wire in
-    let open Printf in
-    let min_len = sizeof_dhcp + sizeof_ethernet + sizeof_ipv4 + sizeof_udp in
-    if len < min_len then
-      invalid_arg (sprintf "packet is too small: %d < %d" len min_len);
+  let pkt_of_buf buf len =
+    let wrap () =
+      let open Wire_structs in
+      let open Ipv4_wire in
+      let open Printf in
+      let min_len = sizeof_dhcp + sizeof_ethernet + sizeof_ipv4 + sizeof_udp in
+      if len < min_len then
+        invalid_arg (sprintf "packet is too small: %d < %d" len min_len);
     (* Handle ethernet *)
     let srcmac = Macaddr.of_bytes_exn (copy_ethernet_src buf) in
     let dstmac = Macaddr.of_bytes_exn (copy_ethernet_dst buf) in
     let () = if (get_ethernet_ethertype buf) <> 0x0800 then
-        invalid_arg (sprintf "packet is not ipv4: %d" (get_ethernet_ethertype buf));
+      invalid_arg (sprintf "packet is not ipv4: %d" (get_ethernet_ethertype buf));
     in
     let buf = Cstruct.shift buf sizeof_ethernet in
     (* Handle IPv4 *)
@@ -973,10 +973,10 @@ let pkt_of_buf buf len =
     let csum = Tcpip_checksum.ones_complement (Cstruct.sub buf 0 ihl) in
     (* Some broken clients don't do ip checksum, accept if they send as zero *)
     let () = if ipcsum <> 0 && csum <> 0 then
-        invalid_arg (sprintf "bad ip checksum: 0x%x" ipcsum)
+      invalid_arg (sprintf "bad ip checksum: 0x%x" ipcsum)
     in
     let () = if (get_ipv4_proto buf) <> 17 then
-        invalid_arg (sprintf "packet is not udp: %d" (get_ipv4_proto buf));
+      invalid_arg (sprintf "packet is not udp: %d" (get_ipv4_proto buf));
     in
     let srcip = Ipaddr.V4.of_int32 (get_ipv4_src buf) in
     let dstip = Ipaddr.V4.of_int32 (get_ipv4_dst buf) in
@@ -1000,10 +1000,10 @@ let pkt_of_buf buf len =
     let siaddr = Ipaddr.V4.of_int32 (get_dhcp_siaddr buf) in
     let giaddr = Ipaddr.V4.of_int32 (get_dhcp_giaddr buf) in
     let chaddr =
-        if htype = Ethernet_10mb && hlen = 6 then
-          Macaddr.of_bytes_exn (Bytes.sub (copy_dhcp_chaddr buf) 0 6)
-        else
-          invalid_arg "Not a mac address."
+      if htype = Ethernet_10mb && hlen = 6 then
+        Macaddr.of_bytes_exn (Bytes.sub (copy_dhcp_chaddr buf) 0 6)
+      else
+        invalid_arg "Not a mac address."
     in
     let sname = Util.cstruct_copy_normalized copy_dhcp_sname buf in
     let file = Util.cstruct_copy_normalized copy_dhcp_file buf in
@@ -1011,22 +1011,22 @@ let pkt_of_buf buf len =
     { srcmac; dstmac; srcip; dstip; srcport; dstport;
       op; htype; hlen; hops; xid; secs; flags; ciaddr; yiaddr;
       siaddr; giaddr; chaddr; sname; file; options }
-  in
+    in
   try
     `Ok (wrap ())
   with
     Invalid_argument e -> `Error e
 
-let buf_of_pkt pkt =
-  let open Wire_structs in
-  let open Ipv4_wire in
-  let dhcp = Cstruct.create 2048 in
-  set_dhcp_op dhcp (op_to_int pkt.op);
+    let buf_of_pkt pkt =
+      let open Wire_structs in
+      let open Ipv4_wire in
+      let dhcp = Cstruct.create 2048 in
+      set_dhcp_op dhcp (op_to_int pkt.op);
   set_dhcp_htype dhcp
     (if pkt.htype = Ethernet_10mb then
-       1
-     else
-       invalid_arg "Can only build Ethernet_10mb");
+      1
+      else
+        invalid_arg "Can only build Ethernet_10mb");
   set_dhcp_hlen dhcp pkt.hlen;
   set_dhcp_hops dhcp pkt.hops;
   set_dhcp_xid dhcp pkt.xid;
@@ -1052,9 +1052,9 @@ let buf_of_pkt pkt =
         done
       in
       Cstruct.shift options_end pad_len
-    else
-      options_end
-  in
+  else
+    options_end
+      in
   let dhcp = Cstruct.set_len dhcp ((Cstruct.len dhcp) - (Cstruct.len buf_end)) in
   (* Ethernet *)
   let ethernet = Cstruct.create 14 in
@@ -1091,352 +1091,352 @@ let buf_of_pkt pkt =
   set_udp_checksum udp udp_csum;
   Cstruct.concat (ethernet :: ip :: udp :: dhcp :: [])
 
-let is_dhcp buf len =
-  let open Wire_structs in
-  match (parse_ethernet_frame buf) with
+    let is_dhcp buf len =
+      let open Wire_structs in
+      match (parse_ethernet_frame buf) with
   | Some (proto, destination, buf) ->
-    let ihl = (Ipv4_wire.get_ipv4_hlen_version buf land 0xf) * 4 in
-    let payload_len = Ipv4_wire.get_ipv4_len buf - ihl in
-    let hdr, data = Cstruct.split buf ihl in
-    if Cstruct.len data >= payload_len then
-      let data = Cstruct.sub data 0 payload_len in
-      let proto = Ipv4_wire.get_ipv4_proto buf in
-      match Ipv4_wire.int_to_protocol proto with
+      let ihl = (Ipv4_wire.get_ipv4_hlen_version buf land 0xf) * 4 in
+      let payload_len = Ipv4_wire.get_ipv4_len buf - ihl in
+      let hdr, data = Cstruct.split buf ihl in
+      if Cstruct.len data >= payload_len then
+        let data = Cstruct.sub data 0 payload_len in
+        let proto = Ipv4_wire.get_ipv4_proto buf in
+        match Ipv4_wire.int_to_protocol proto with
       | Some `UDP  ->
-        let srcport = get_udp_source_port data in
-        let dstport = get_udp_dest_port data in
-        (dstport = server_port || dstport = client_port) &&
+          let srcport = get_udp_source_port data in
+          let dstport = get_udp_dest_port data in
+          (dstport = server_port || dstport = client_port) &&
         (srcport = server_port || srcport = client_port)
       | _ -> false
     else
       false
-  | _ -> false
+      | _ -> false
 
-let find_option f options = Util.find_map f options
+    let find_option f options = Util.find_map f options
 
-let collect_options f options = Util.filter_map f options |> List.flatten
+    let collect_options f options = Util.filter_map f options |> List.flatten
 
-let client_id_of_pkt pkt =
-  match find_option
+    let client_id_of_pkt pkt =
+      match find_option
           (function Client_id id -> Some id | _ -> None)
           pkt.options
-  with
+        with
   | Some id -> id
   | None -> Hwaddr pkt.chaddr
 
-(* string_of_* functions *)
-let to_hum f x = Sexplib.Sexp.to_string_hum (f x)
-let client_id_to_string = to_hum sexp_of_client_id
-let pkt_to_string = to_hum sexp_of_pkt
-let dhcp_option_to_string = to_hum sexp_of_dhcp_option
+  (* string_of_* functions *)
+    let to_hum f x = Sexplib.Sexp.to_string_hum (f x)
+    let client_id_to_string = to_hum sexp_of_client_id
+    let pkt_to_string = to_hum sexp_of_pkt
+    let dhcp_option_to_string = to_hum sexp_of_dhcp_option
 
-let find_subnet_mask =
-  find_option (function Subnet_mask x -> Some x | _ -> None)
-let find_time_offset =
-  find_option (function Time_offset x -> Some x | _ -> None)
-let collect_routers =
-  collect_options (function Routers x -> Some x | _ -> None)
-let collect_time_servers =
-  collect_options (function Time_servers x -> Some x | _ -> None)
-let collect_name_servers =
-  collect_options (function Name_servers x -> Some x | _ -> None)
-let collect_dns_servers =
-  collect_options (function Dns_servers x -> Some x | _ -> None)
-let collect_log_servers =
-  collect_options (function Log_servers x -> Some x | _ -> None)
-let collect_cookie_servers =
-  collect_options (function Cookie_servers x -> Some x | _ -> None)
-let collect_lpr_servers =
-  collect_options (function Lpr_servers x -> Some x | _ -> None)
-let collect_impress_servers =
-  collect_options (function Impress_servers x -> Some x | _ -> None)
-let collect_rsc_location_servers =
-  collect_options (function Rsclocation_servers x -> Some x | _ -> None)
-let find_hostname =
-  find_option (function Hostname x -> Some x | _ -> None)
-let find_bootfile_size =
-  find_option (function Bootfile_size x -> Some x | _ -> None)
-let find_merit_dumpfile =
-  find_option (function Merit_dumpfile x -> Some x | _ -> None)
-let find_domain_name =
-  find_option (function Domain_name x -> Some x | _ -> None)
-let find_swap_server =
-  find_option (function Swap_server x -> Some x | _ -> None)
-let find_root_path =
-  find_option (function Root_path x -> Some x | _ -> None)
-let find_extension_path =
-  find_option (function Extension_path x -> Some x | _ -> None)
-let find_ipforwarding =
-  find_option (function Ipforwarding x -> Some x | _ -> None)
-let find_nlsr =
-  find_option (function Nlsr x -> Some x | _ -> None)
-let collect_policy_filters =
-  collect_options (function Policy_filters x -> Some x | _ -> None)
-let find_max_datagram =
-  find_option (function Max_datagram x -> Some x | _ -> None)
-let find_default_ip_ttl =
-  find_option (function Default_ip_ttl x -> Some x | _ -> None)
-let find_pmtu_ageing_timo =
-  find_option (function Pmtu_ageing_timo x -> Some x | _ -> None)
-let find_pmtu_plateau_table =
-  find_option (function Pmtu_plateau_table x -> Some x | _ -> None)
-let find_interface_mtu =
-  find_option (function Interface_mtu x -> Some x | _ -> None)
-let find_all_subnets_local =
-  find_option (function All_subnets_local x -> Some x | _ -> None)
-let find_broadcast_addr =
-  find_option (function Broadcast_addr x -> Some x | _ -> None)
-let find_perform_mask_discovery =
-  find_option (function Perform_mask_discovery x -> Some x | _ -> None)
-let find_mask_supplier =
-  find_option (function Mask_supplier x -> Some x | _ -> None)
-let find_perform_router_disc =
-  find_option (function Perform_router_disc x -> Some x | _ -> None)
-let find_router_sol_addr =
-  find_option (function Router_sol_addr x -> Some x | _ -> None)
-let collect_static_routes =
-  collect_options (function Static_routes x -> Some x | _ -> None)
-let find_trailer_encapsulation =
-  find_option (function Trailer_encapsulation x -> Some x | _ -> None)
-let find_arp_cache_timo =
-  find_option (function Arp_cache_timo x -> Some x | _ -> None)
-let find_ethernet_encapsulation =
-  find_option (function Ethernet_encapsulation x -> Some x | _ -> None)
-let find_tcp_default_ttl =
-  find_option (function Tcp_default_ttl x -> Some x | _ -> None)
-let find_tcp_keepalive_interval =
-  find_option (function Tcp_keepalive_interval x -> Some x | _ -> None)
-let find_tcp_keepalive_garbage =
-  find_option (function Tcp_keepalive_garbage x -> Some x | _ -> None)
-let find_nis_domain =
-  find_option (function Nis_domain x -> Some x | _ -> None)
-let collect_nis_servers =
-  collect_options (function Nis_servers x -> Some x | _ -> None)
-let collect_ntp_servers =
-  collect_options (function Ntp_servers x -> Some x | _ -> None)
-let find_vendor_specific =
-  find_option (function Vendor_specific x -> Some x | _ -> None)
-let collect_netbios_name_servers =
-  collect_options (function Netbios_name_servers x -> Some x | _ -> None)
-let collect_netbios_datagram_distrib_servers =
-  collect_options (function Netbios_datagram_distrib_servers x -> Some x | _ -> None)
-let find_netbios_node =
-  find_option (function Netbios_node x -> Some x | _ -> None)
-let find_netbios_scope =
-  find_option (function Netbios_scope x -> Some x | _ -> None)
-let collect_xwindow_font_servers =
-  collect_options (function Xwindow_font_servers x -> Some x | _ -> None)
-let collect_xwindow_display_managers =
-  collect_options (function Xwindow_display_managers x -> Some x | _ -> None)
-let find_request_ip =
-  find_option (function Request_ip x -> Some x | _ -> None)
-let find_ip_lease_time =
-  find_option (function Ip_lease_time x -> Some x | _ -> None)
-let find_option_overload =
-  find_option (function Option_overload x -> Some x | _ -> None)
-let find_message_type =
-  find_option (function Message_type x -> Some x | _ -> None)
-let find_server_identifier =
-  find_option (function Server_identifier x -> Some x | _ -> None)
-let find_parameter_requests =
-  find_option (function Parameter_requests x -> Some x | _ -> None)
-let find_message =
-  find_option (function Message x -> Some x | _ -> None)
-let find_max_message =
-  find_option (function Max_message x -> Some x | _ -> None)
-let find_renewal_t1 =
-  find_option (function Renewal_t1 x -> Some x | _ -> None)
-let find_rebinding_t2 =
-  find_option (function Rebinding_t2 x -> Some x | _ -> None)
-let find_vendor_class_id =
-  find_option (function Vendor_class_id x -> Some x | _ -> None)
-let find_client_id =
-  find_option (function Client_id x -> Some x | _ -> None)
-let find_netware_ip_domain =
-  find_option (function Netware_ip_domain x -> Some x | _ -> None)
-let find_netware_ip_option =
-  find_option (function Netware_ip_option x -> Some x | _ -> None)
-let find_nis_plus_domain =
-  find_option (function Nis_plus_domain x -> Some x | _ -> None)
-let collect_nis_plus_servers =
-  collect_options (function Nis_plus_servers x -> Some x | _ -> None)
-let find_tftp_server_name =
-  find_option (function Tftp_server_name x -> Some x | _ -> None)
-let find_bootfile_name =
-  find_option (function Bootfile_name x -> Some x | _ -> None)
-let collect_mobile_ip_home_agent =
-  collect_options (function Mobile_ip_home_agent x -> Some x | _ -> None)
-let collect_smtp_servers =
-  collect_options (function Smtp_servers x -> Some x | _ -> None)
-let collect_pop3_servers =
-  collect_options (function Pop3_servers x -> Some x | _ -> None)
-let collect_nntp_servers =
-  collect_options (function Nntp_servers x -> Some x | _ -> None)
-let collect_www_servers =
-  collect_options (function Www_servers x -> Some x | _ -> None)
-let collect_finger_servers =
-  collect_options (function Finger_servers x -> Some x | _ -> None)
-let collect_irc_servers =
-  collect_options (function Irc_servers x -> Some x | _ -> None)
-let collect_streettalk_servers =
-  collect_options (function Streettalk_servers x -> Some x | _ -> None)
-let collect_streettalk_da =
-  collect_options (function Streettalk_da x -> Some x | _ -> None)
-let find_user_class =
-  find_option (function User_class x -> Some x | _ -> None)
-let find_directory_agent =
-  find_option (function Directory_agent x -> Some x | _ -> None)
-let find_service_scope =
-  find_option (function Service_scope x -> Some x | _ -> None)
-let find_rapid_commit =
-  find_option (function Rapid_commit -> Some Rapid_commit | _ -> None)
-let find_client_fqdn =
-  find_option (function Client_fqdn x -> Some x | _ -> None)
-let find_relay_agent_information =
-  find_option (function Relay_agent_information x -> Some x | _ -> None)
-let find_isns =
-  find_option (function Isns x -> Some x | _ -> None)
-let find_nds_servers=
-  find_option (function Nds_servers x -> Some x | _ -> None)
-let find_nds_tree_name =
-  find_option (function Nds_tree_name x -> Some x | _ -> None)
-let find_nds_context =
-  find_option (function Nds_context x -> Some x | _ -> None)
-let find_bcmcs_controller_domain_name =
-  find_option (function Bcmcs_controller_domain_name_list x -> Some x | _ -> None)
-let collect_bcmcs_controller_ipv4_addrs =
-  collect_options (function Bcmcs_controller_ipv4_addrs x -> Some x | _ -> None)
-let find_authentication =
-  find_option (function Authentication x -> Some x | _ -> None)
-let find_client_last_transaction_time =
-  find_option (function Client_last_transaction_time x -> Some x | _ -> None)
-let collect_associated_ips =
-  collect_options (function Associated_ips x -> Some x | _ -> None)
-let find_client_system =
-  find_option (function Client_system x -> Some x | _ -> None)
-let find_client_ndi =
-  find_option (function Client_ndi x -> Some x | _ -> None)
-let find_ldap =
-  find_option (function Ldap x -> Some x | _ -> None)
-let find_uuid_guid =
-  find_option (function Uuid_guid x -> Some x | _ -> None)
-let find_user_auth =
-  find_option (function User_auth x -> Some x | _ -> None)
-let find_geoconf_civic =
-  find_option (function Geoconf_civic x -> Some x | _ -> None)
-let find_pcode =
-  find_option (function Pcode x -> Some x | _ -> None)
-let find_tcode =
-  find_option (function Tcode x -> Some x | _ -> None)
-let find_netinfo_address =
-  find_option (function Netinfo_address x -> Some x | _ -> None)
-let find_netinfo_tag =
-  find_option (function Netinfo_tag x -> Some x | _ -> None)
-let find_url =
-  find_option (function Url x -> Some x | _ -> None)
-let find_auto_config =
-  find_option (function Auto_config x -> Some x | _ -> None)
-let find_name_service_search =
-  find_option (function Name_service_search x -> Some x | _ -> None)
-let find_subnet_selection =
-  find_option (function Subnet_selection x -> Some x | _ -> None)
-let find_domain_search =
-  find_option (function Domain_search x -> Some x | _ -> None)
-let find_sip_servers =
-  find_option (function Sip_servers x -> Some x | _ -> None)
-let find_classless_static_route =
-  find_option (function Classless_static_route x -> Some x | _ -> None)
-let find_ccc =
-  find_option (function Ccc x -> Some x | _ -> None)
-let find_geoconf =
-  find_option (function Geoconf x -> Some x | _ -> None)
-let find_vi_vendor_class =
-  find_option (function Vi_vendor_class x -> Some x | _ -> None)
-let find_vi_vendor_info =
-  find_option (function Vi_vendor_info x -> Some x | _ -> None)
-let find_pxe_128 =
-  find_option (function Pxe_128 x -> Some x | _ -> None)
-let find_pxe_129 =
-  find_option (function Pxe_129 x -> Some x | _ -> None)
-let find_pxe_130 =
-  find_option (function Pxe_130 x -> Some x | _ -> None)
-let find_pxe_131 =
-  find_option (function Pxe_131 x -> Some x | _ -> None)
-let find_pxe_132 =
-  find_option (function Pxe_132 x -> Some x | _ -> None)
-let find_pxe_133 =
-  find_option (function Pxe_133 x -> Some x | _ -> None)
-let find_pxe_134 =
-  find_option (function Pxe_134 x -> Some x | _ -> None)
-let find_pxe_135 =
-  find_option (function Pxe_135 x -> Some x | _ -> None)
-let find_pana_agent =
-  find_option (function Pana_agent x -> Some x | _ -> None)
-let find_v4_lost =
-  find_option (function V4_lost x -> Some x | _ -> None)
-let find_capwap_ac_v4 =
-  find_option (function Capwap_ac_v4 x -> Some x | _ -> None)
-let find_ipv4_address_mos =
-  find_option (function Ipv4_address_mos x -> Some x | _ -> None)
-let find_ipv4_fqdn_mos =
-  find_option (function Ipv4_fqdn_mos x -> Some x | _ -> None)
-let find_sip_ua_domains =
-  find_option (function Sip_ua_domains x -> Some x | _ -> None)
-let find_ipv4_address_andsf =
-  find_option (function Ipv4_address_andsf x -> Some x | _ -> None)
-let find_geolock =
-  find_option (function Geolock x -> Some x | _ -> None)
-let find_forcenew_nonce_capable =
-  find_option (function Forcenew_nonce_capable x -> Some x | _ -> None)
-let find_rdnss_selection =
-  find_option (function Rdnss_selection x -> Some x | _ -> None)
-let find_misc_150 =
-  find_option (function Misc_150 x -> Some x | _ -> None)
-let find_status_code =
-  find_option (function Status_code x -> Some x | _ -> None)
-let find_absolute_time =
-  find_option (function Absolute_time x -> Some x | _ -> None)
-let find_start_time_of_state =
-  find_option (function Start_time_of_state x -> Some x | _ -> None)
-let find_query_start_time =
-  find_option (function Query_start_time x -> Some x | _ -> None)
-let find_query_end_time =
-  find_option (function Query_end_time x -> Some x | _ -> None)
-let find_dhcp_state =
-  find_option (function Dhcp_state x -> Some x | _ -> None)
-let find_data_source=
-  find_option (function Data_source x -> Some x | _ -> None)
-let find_v4_pcp_server =
-  find_option (function V4_pcp_server x -> Some x | _ -> None)
-let find_v4_portparams =
-  find_option (function V4_portparams x -> Some x | _ -> None)
-let find_dhcp_captive_portal =
-  find_option (function Dhcp_captive_portal x -> Some x | _ -> None)
-let find_etherboot_175 =
-  find_option (function Etherboot_175 x -> Some x | _ -> None)
-let find_ip_telefone =
-  find_option (function Ip_telefone x -> Some x | _ -> None)
-let find_etherboot_177 =
-  find_option (function Etherboot_177 x -> Some x | _ -> None)
-let find_pxe_linux =
-  find_option (function Pxe_linux x -> Some x | _ -> None)
-let find_configuration_file =
-  find_option (function Configuration_file x -> Some x | _ -> None)
-let find_path_prefix =
-  find_option (function Path_prefix x -> Some x | _ -> None)
-let find_reboot_time =
-  find_option (function Reboot_time x -> Some x | _ -> None)
-let find_option_6rd =
-  find_option (function Option_6rd x -> Some x | _ -> None)
-let find_v4_access_domain =
-  find_option (function V4_access_domain x -> Some x | _ -> None)
-let find_subnet_allocation =
-  find_option (function Subnet_allocation x -> Some x | _ -> None)
-let find_virtual_subnet_selection =
-  find_option (function Virtual_subnet_selection x -> Some x | _ -> None)
-let find_web_proxy_auto_disc =
-  find_option (function Web_proxy_auto_disc x -> Some x | _ -> None)
-let find_unassigned code =
-  find_option (function Unassigned (c, s) when c = code -> Some (c, s) | _ -> None)
-let collect_unassigned code =
-  collect_options (function Unassigned (c, s) when c = code -> Some [(c, s)] | _ -> None)
+    let find_subnet_mask =
+      find_option (function Subnet_mask x -> Some x | _ -> None)
+    let find_time_offset =
+      find_option (function Time_offset x -> Some x | _ -> None)
+    let collect_routers =
+      collect_options (function Routers x -> Some x | _ -> None)
+    let collect_time_servers =
+      collect_options (function Time_servers x -> Some x | _ -> None)
+    let collect_name_servers =
+      collect_options (function Name_servers x -> Some x | _ -> None)
+    let collect_dns_servers =
+      collect_options (function Dns_servers x -> Some x | _ -> None)
+    let collect_log_servers =
+      collect_options (function Log_servers x -> Some x | _ -> None)
+    let collect_cookie_servers =
+      collect_options (function Cookie_servers x -> Some x | _ -> None)
+    let collect_lpr_servers =
+      collect_options (function Lpr_servers x -> Some x | _ -> None)
+    let collect_impress_servers =
+      collect_options (function Impress_servers x -> Some x | _ -> None)
+    let collect_rsc_location_servers =
+      collect_options (function Rsclocation_servers x -> Some x | _ -> None)
+    let find_hostname =
+      find_option (function Hostname x -> Some x | _ -> None)
+    let find_bootfile_size =
+      find_option (function Bootfile_size x -> Some x | _ -> None)
+    let find_merit_dumpfile =
+      find_option (function Merit_dumpfile x -> Some x | _ -> None)
+    let find_domain_name =
+      find_option (function Domain_name x -> Some x | _ -> None)
+    let find_swap_server =
+      find_option (function Swap_server x -> Some x | _ -> None)
+    let find_root_path =
+      find_option (function Root_path x -> Some x | _ -> None)
+    let find_extension_path =
+      find_option (function Extension_path x -> Some x | _ -> None)
+    let find_ipforwarding =
+      find_option (function Ipforwarding x -> Some x | _ -> None)
+    let find_nlsr =
+      find_option (function Nlsr x -> Some x | _ -> None)
+    let collect_policy_filters =
+      collect_options (function Policy_filters x -> Some x | _ -> None)
+    let find_max_datagram =
+      find_option (function Max_datagram x -> Some x | _ -> None)
+    let find_default_ip_ttl =
+      find_option (function Default_ip_ttl x -> Some x | _ -> None)
+    let find_pmtu_ageing_timo =
+      find_option (function Pmtu_ageing_timo x -> Some x | _ -> None)
+    let find_pmtu_plateau_table =
+      find_option (function Pmtu_plateau_table x -> Some x | _ -> None)
+    let find_interface_mtu =
+      find_option (function Interface_mtu x -> Some x | _ -> None)
+    let find_all_subnets_local =
+      find_option (function All_subnets_local x -> Some x | _ -> None)
+    let find_broadcast_addr =
+      find_option (function Broadcast_addr x -> Some x | _ -> None)
+    let find_perform_mask_discovery =
+      find_option (function Perform_mask_discovery x -> Some x | _ -> None)
+    let find_mask_supplier =
+      find_option (function Mask_supplier x -> Some x | _ -> None)
+    let find_perform_router_disc =
+      find_option (function Perform_router_disc x -> Some x | _ -> None)
+    let find_router_sol_addr =
+      find_option (function Router_sol_addr x -> Some x | _ -> None)
+    let collect_static_routes =
+      collect_options (function Static_routes x -> Some x | _ -> None)
+    let find_trailer_encapsulation =
+      find_option (function Trailer_encapsulation x -> Some x | _ -> None)
+    let find_arp_cache_timo =
+      find_option (function Arp_cache_timo x -> Some x | _ -> None)
+    let find_ethernet_encapsulation =
+      find_option (function Ethernet_encapsulation x -> Some x | _ -> None)
+    let find_tcp_default_ttl =
+      find_option (function Tcp_default_ttl x -> Some x | _ -> None)
+    let find_tcp_keepalive_interval =
+      find_option (function Tcp_keepalive_interval x -> Some x | _ -> None)
+    let find_tcp_keepalive_garbage =
+      find_option (function Tcp_keepalive_garbage x -> Some x | _ -> None)
+    let find_nis_domain =
+      find_option (function Nis_domain x -> Some x | _ -> None)
+    let collect_nis_servers =
+      collect_options (function Nis_servers x -> Some x | _ -> None)
+    let collect_ntp_servers =
+      collect_options (function Ntp_servers x -> Some x | _ -> None)
+    let find_vendor_specific =
+      find_option (function Vendor_specific x -> Some x | _ -> None)
+    let collect_netbios_name_servers =
+      collect_options (function Netbios_name_servers x -> Some x | _ -> None)
+    let collect_netbios_datagram_distrib_servers =
+      collect_options (function Netbios_datagram_distrib_servers x -> Some x | _ -> None)
+    let find_netbios_node =
+      find_option (function Netbios_node x -> Some x | _ -> None)
+    let find_netbios_scope =
+      find_option (function Netbios_scope x -> Some x | _ -> None)
+    let collect_xwindow_font_servers =
+      collect_options (function Xwindow_font_servers x -> Some x | _ -> None)
+    let collect_xwindow_display_managers =
+      collect_options (function Xwindow_display_managers x -> Some x | _ -> None)
+    let find_request_ip =
+      find_option (function Request_ip x -> Some x | _ -> None)
+    let find_ip_lease_time =
+      find_option (function Ip_lease_time x -> Some x | _ -> None)
+    let find_option_overload =
+      find_option (function Option_overload x -> Some x | _ -> None)
+    let find_message_type =
+      find_option (function Message_type x -> Some x | _ -> None)
+    let find_server_identifier =
+      find_option (function Server_identifier x -> Some x | _ -> None)
+    let find_parameter_requests =
+      find_option (function Parameter_requests x -> Some x | _ -> None)
+    let find_message =
+      find_option (function Message x -> Some x | _ -> None)
+    let find_max_message =
+      find_option (function Max_message x -> Some x | _ -> None)
+    let find_renewal_t1 =
+      find_option (function Renewal_t1 x -> Some x | _ -> None)
+    let find_rebinding_t2 =
+      find_option (function Rebinding_t2 x -> Some x | _ -> None)
+    let find_vendor_class_id =
+      find_option (function Vendor_class_id x -> Some x | _ -> None)
+    let find_client_id =
+      find_option (function Client_id x -> Some x | _ -> None)
+    let find_netware_ip_domain =
+      find_option (function Netware_ip_domain x -> Some x | _ -> None)
+    let find_netware_ip_option =
+      find_option (function Netware_ip_option x -> Some x | _ -> None)
+    let find_nis_plus_domain =
+      find_option (function Nis_plus_domain x -> Some x | _ -> None)
+    let collect_nis_plus_servers =
+      collect_options (function Nis_plus_servers x -> Some x | _ -> None)
+    let find_tftp_server_name =
+      find_option (function Tftp_server_name x -> Some x | _ -> None)
+    let find_bootfile_name =
+      find_option (function Bootfile_name x -> Some x | _ -> None)
+    let collect_mobile_ip_home_agent =
+      collect_options (function Mobile_ip_home_agent x -> Some x | _ -> None)
+    let collect_smtp_servers =
+      collect_options (function Smtp_servers x -> Some x | _ -> None)
+    let collect_pop3_servers =
+      collect_options (function Pop3_servers x -> Some x | _ -> None)
+    let collect_nntp_servers =
+      collect_options (function Nntp_servers x -> Some x | _ -> None)
+    let collect_www_servers =
+      collect_options (function Www_servers x -> Some x | _ -> None)
+    let collect_finger_servers =
+      collect_options (function Finger_servers x -> Some x | _ -> None)
+    let collect_irc_servers =
+      collect_options (function Irc_servers x -> Some x | _ -> None)
+    let collect_streettalk_servers =
+      collect_options (function Streettalk_servers x -> Some x | _ -> None)
+    let collect_streettalk_da =
+      collect_options (function Streettalk_da x -> Some x | _ -> None)
+    let find_user_class =
+      find_option (function User_class x -> Some x | _ -> None)
+    let find_directory_agent =
+      find_option (function Directory_agent x -> Some x | _ -> None)
+    let find_service_scope =
+      find_option (function Service_scope x -> Some x | _ -> None)
+    let find_rapid_commit =
+      find_option (function Rapid_commit -> Some Rapid_commit | _ -> None)
+    let find_client_fqdn =
+      find_option (function Client_fqdn x -> Some x | _ -> None)
+    let find_relay_agent_information =
+      find_option (function Relay_agent_information x -> Some x | _ -> None)
+    let find_isns =
+      find_option (function Isns x -> Some x | _ -> None)
+    let find_nds_servers=
+      find_option (function Nds_servers x -> Some x | _ -> None)
+    let find_nds_tree_name =
+      find_option (function Nds_tree_name x -> Some x | _ -> None)
+    let find_nds_context =
+      find_option (function Nds_context x -> Some x | _ -> None)
+    let find_bcmcs_controller_domain_name =
+      find_option (function Bcmcs_controller_domain_name_list x -> Some x | _ -> None)
+    let collect_bcmcs_controller_ipv4_addrs =
+      collect_options (function Bcmcs_controller_ipv4_addrs x -> Some x | _ -> None)
+    let find_authentication =
+      find_option (function Authentication x -> Some x | _ -> None)
+    let find_client_last_transaction_time =
+      find_option (function Client_last_transaction_time x -> Some x | _ -> None)
+    let collect_associated_ips =
+      collect_options (function Associated_ips x -> Some x | _ -> None)
+    let find_client_system =
+      find_option (function Client_system x -> Some x | _ -> None)
+    let find_client_ndi =
+      find_option (function Client_ndi x -> Some x | _ -> None)
+    let find_ldap =
+      find_option (function Ldap x -> Some x | _ -> None)
+    let find_uuid_guid =
+      find_option (function Uuid_guid x -> Some x | _ -> None)
+    let find_user_auth =
+      find_option (function User_auth x -> Some x | _ -> None)
+    let find_geoconf_civic =
+      find_option (function Geoconf_civic x -> Some x | _ -> None)
+    let find_pcode =
+      find_option (function Pcode x -> Some x | _ -> None)
+    let find_tcode =
+      find_option (function Tcode x -> Some x | _ -> None)
+    let find_netinfo_address =
+      find_option (function Netinfo_address x -> Some x | _ -> None)
+    let find_netinfo_tag =
+      find_option (function Netinfo_tag x -> Some x | _ -> None)
+    let find_url =
+      find_option (function Url x -> Some x | _ -> None)
+    let find_auto_config =
+      find_option (function Auto_config x -> Some x | _ -> None)
+    let find_name_service_search =
+      find_option (function Name_service_search x -> Some x | _ -> None)
+    let find_subnet_selection =
+      find_option (function Subnet_selection x -> Some x | _ -> None)
+    let find_domain_search =
+      find_option (function Domain_search x -> Some x | _ -> None)
+    let find_sip_servers =
+      find_option (function Sip_servers x -> Some x | _ -> None)
+    let find_classless_static_route =
+      find_option (function Classless_static_route x -> Some x | _ -> None)
+    let find_ccc =
+      find_option (function Ccc x -> Some x | _ -> None)
+    let find_geoconf =
+      find_option (function Geoconf x -> Some x | _ -> None)
+    let find_vi_vendor_class =
+      find_option (function Vi_vendor_class x -> Some x | _ -> None)
+    let find_vi_vendor_info =
+      find_option (function Vi_vendor_info x -> Some x | _ -> None)
+    let find_pxe_128 =
+      find_option (function Pxe_128 x -> Some x | _ -> None)
+    let find_pxe_129 =
+      find_option (function Pxe_129 x -> Some x | _ -> None)
+    let find_pxe_130 =
+      find_option (function Pxe_130 x -> Some x | _ -> None)
+    let find_pxe_131 =
+      find_option (function Pxe_131 x -> Some x | _ -> None)
+    let find_pxe_132 =
+      find_option (function Pxe_132 x -> Some x | _ -> None)
+    let find_pxe_133 =
+      find_option (function Pxe_133 x -> Some x | _ -> None)
+    let find_pxe_134 =
+      find_option (function Pxe_134 x -> Some x | _ -> None)
+    let find_pxe_135 =
+      find_option (function Pxe_135 x -> Some x | _ -> None)
+    let find_pana_agent =
+      find_option (function Pana_agent x -> Some x | _ -> None)
+    let find_v4_lost =
+      find_option (function V4_lost x -> Some x | _ -> None)
+    let find_capwap_ac_v4 =
+      find_option (function Capwap_ac_v4 x -> Some x | _ -> None)
+    let find_ipv4_address_mos =
+      find_option (function Ipv4_address_mos x -> Some x | _ -> None)
+    let find_ipv4_fqdn_mos =
+      find_option (function Ipv4_fqdn_mos x -> Some x | _ -> None)
+    let find_sip_ua_domains =
+      find_option (function Sip_ua_domains x -> Some x | _ -> None)
+    let find_ipv4_address_andsf =
+      find_option (function Ipv4_address_andsf x -> Some x | _ -> None)
+    let find_geolock =
+      find_option (function Geolock x -> Some x | _ -> None)
+    let find_forcenew_nonce_capable =
+      find_option (function Forcenew_nonce_capable x -> Some x | _ -> None)
+    let find_rdnss_selection =
+      find_option (function Rdnss_selection x -> Some x | _ -> None)
+    let find_misc_150 =
+      find_option (function Misc_150 x -> Some x | _ -> None)
+    let find_status_code =
+      find_option (function Status_code x -> Some x | _ -> None)
+    let find_absolute_time =
+      find_option (function Absolute_time x -> Some x | _ -> None)
+    let find_start_time_of_state =
+      find_option (function Start_time_of_state x -> Some x | _ -> None)
+    let find_query_start_time =
+      find_option (function Query_start_time x -> Some x | _ -> None)
+    let find_query_end_time =
+      find_option (function Query_end_time x -> Some x | _ -> None)
+    let find_dhcp_state =
+      find_option (function Dhcp_state x -> Some x | _ -> None)
+    let find_data_source=
+      find_option (function Data_source x -> Some x | _ -> None)
+    let find_v4_pcp_server =
+      find_option (function V4_pcp_server x -> Some x | _ -> None)
+    let find_v4_portparams =
+      find_option (function V4_portparams x -> Some x | _ -> None)
+    let find_dhcp_captive_portal =
+      find_option (function Dhcp_captive_portal x -> Some x | _ -> None)
+    let find_etherboot_175 =
+      find_option (function Etherboot_175 x -> Some x | _ -> None)
+    let find_ip_telefone =
+      find_option (function Ip_telefone x -> Some x | _ -> None)
+    let find_etherboot_177 =
+      find_option (function Etherboot_177 x -> Some x | _ -> None)
+    let find_pxe_linux =
+      find_option (function Pxe_linux x -> Some x | _ -> None)
+    let find_configuration_file =
+      find_option (function Configuration_file x -> Some x | _ -> None)
+    let find_path_prefix =
+      find_option (function Path_prefix x -> Some x | _ -> None)
+    let find_reboot_time =
+      find_option (function Reboot_time x -> Some x | _ -> None)
+    let find_option_6rd =
+      find_option (function Option_6rd x -> Some x | _ -> None)
+    let find_v4_access_domain =
+      find_option (function V4_access_domain x -> Some x | _ -> None)
+    let find_subnet_allocation =
+      find_option (function Subnet_allocation x -> Some x | _ -> None)
+    let find_virtual_subnet_selection =
+      find_option (function Virtual_subnet_selection x -> Some x | _ -> None)
+    let find_web_proxy_auto_disc =
+      find_option (function Web_proxy_auto_disc x -> Some x | _ -> None)
+    let find_unassigned code =
+      find_option (function Unassigned (c, s) when c = code -> Some (c, s) | _ -> None)
+    let collect_unassigned code =
+      collect_options (function Unassigned (c, s) when c = code -> Some [(c, s)] | _ -> None)
