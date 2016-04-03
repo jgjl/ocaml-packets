@@ -20,6 +20,8 @@ Nail aims solely at providing an API/DSL for describing packet formats. The exam
 Nail seems more promising, let's see if this approach can be build with Ocaml and ppx.
 
 Code references:
+
 [1] https://github.com/p4lang/tutorials/blob/master/examples/TLV_parsing/p4src/TLV_parsing.p4
+
 [2] https://github.com/jbangert/nail/blob/master/examples/dns/dns.nail
 
