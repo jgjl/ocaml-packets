@@ -185,8 +185,9 @@ module WireV2 = struct
   [@@uint8_t] ]
 
   let sizeof_part_router_advertisement_total v =
-    let count = get_part_router_advertisement_advertisement_count in
-    let size = get_part_router_advertisement_address_entry_size in
+    let v_part = Cstruct.shift v sizeof_header in
+    let count = get_part_router_advertisement_advertisement_count v_part in
+    let size = get_part_router_advertisement_address_entry_size v_part in
     size * count + sizeof_part_router_advertisement
 
   type code =
@@ -298,4 +299,7 @@ module WireV2 = struct
               length=size;
               next_protocol=next_protocol})
     )
+
+  let get_payload ty v =
+    Cstruct.shift v (sizeof_ty ty v)
 end
