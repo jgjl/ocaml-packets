@@ -1,49 +1,26 @@
-  
+
+module Option : sig
+  val bind : 'a option -> ('a -> 'b option) -> 'b option
+  val (>>=) : 'a option -> ('a -> 'b option) -> 'b option
+  val return : 'a -> 'a option
+end = struct
+  let bind x f = match x with
+  | Some x -> f x
+  | None -> None
+
+  let return x = Some x
+
+  let (>>=) = bind
+end
 
 let protocol_no = Protocols.Internet (Stdint.Uint8.of_int 1)
 
-[%%cenum
-type ty =
-  | ECHO_REPLY               [@id 0]
-  | DESTINATION_UNREACHABLE  [@id 3]
-  | SOURCE_QUENCH            [@id 4]
-  | REDIRECT_MESSAGE         [@id 5]
-  | ECHO_REQUEST             [@id 8]
-  | ROUTER_ADVERTISEMENT     [@id 9]
-  | ROUTER_SOLICITATION     [@id 10]
-  | TIME_EXCEEDED           [@id 11]
-  | BAD_IP_HEADER           [@id 12]
-  | TIMESTAMP               [@id 13]
-  | TIMESTAMP_REPLY         [@id 14]
-  | ADDRESSMASK_REQUEST     [@id 17]
-  | ADDRESSMASK_REPLY       [@id 18]
-[@@uint8_t]
-]
-
-module Wire = struct
+module WireV2 = struct
 
   type t = Cstruct.t
 
-  type part =
-    | Part_icmpv4 of ty
-    | Part_echo
-    | Part_unused
-    | Part_redirect
-    | Part_timestamp
-    | Part_address_mask
-    | Part_bad_ip_header
-    | Part_router_advertisement
-    | Part_destination_unreachable
-    | Part_router_advertisement_entry
-
-  type next_part =
-    | None
-    | Unknown_data
-    | Proto of Protocols.protocol
-    | Part of part
-
   [%%cstruct
-  type icmpv4 = {
+  type header = {
     ty:     uint8_t;
     code:   uint8_t;
     csum:   uint16_t;
@@ -73,6 +50,8 @@ module Wire = struct
    * Type=4; Code=4
    * Time Exceeded
    * Type=11; Code=0,1
+   * Router Solizitation
+   * Type=10; Code=0
    *)
   [%%cstruct
   type part_unused = {
@@ -139,82 +118,184 @@ module Wire = struct
   } [@@big_endian]
   ]
 
-  let get_part last_part =
-    match last_part with
-    | Part_icmpv4 ty ->
-      (match ty with
-      | ECHO_REPLY | ECHO_REQUEST -> Part Part_echo
-      | DESTINATION_UNREACHABLE -> Part Part_destination_unreachable
-      | SOURCE_QUENCH | TIME_EXCEEDED | ROUTER_SOLICITATION -> Part Part_unused
-      | REDIRECT_MESSAGE -> Part Part_redirect
-      | BAD_IP_HEADER -> Part Part_bad_ip_header
-      | TIMESTAMP | TIMESTAMP_REPLY -> Part Part_timestamp
-      | ADDRESSMASK_REQUEST | ADDRESSMASK_REPLY -> Part Part_address_mask
-      | ROUTER_ADVERTISEMENT -> Part Part_router_advertisement)
-    | Part_echo -> Unknown_data
-    | Part_unused | Part_redirect | Part_bad_ip_header | Part_destination_unreachable -> Proto Ipv4.Ipv4_packet.protocol_no
-    | Part_timestamp | Part_address_mask -> None
-    | Part_router_advertisement -> Part Part_router_advertisement_entry
-    | Part_router_advertisement_entry -> None
+  [%%cenum
+  type destination_unreachable_code =
+    | Destination_network_unreachable           [@id0]
+    | Destination_host_unreachable              [@id1]
+    | Destination_protocol_unreachable          [@id2]
+    | Destination_port_unreachable              [@id3]
+    | Fragmentation_required_and_DF_flag_set    [@id4]
+    | Source_route_failed                       [@id5]
+    | Destination_network_unknown               [@id6]
+    | Destination_host_unknown                  [@id7]
+    | Source_host_isolated                      [@id8]
+    | Network_administratively_prohibited       [@id9]
+    | Host_administratively_prohibited          [@id10]
+    | Network_unreachable_for_TOS               [@id11]
+    | Host_unreachable_for_TOS                  [@id12]
+    | Communication_administratively_prohibited [@id13]
+    | Host_Precedence_Violation                 [@id14]
+    | Precedence_cutoff_in_effect               [@id15]
+  [@@uint8_t] ]
 
-  let get_part v =
-    if (Cstruct.len v) > 4
-    then Some (Cstruct.shift v 4)
-    else None
+  [%%cenum
+  type redirect_message_code =
+    | Network_error         [@id 0]
+    | Host_error            [@id 1]
+    | TOS_and_network_error [@id 2]
+    | TOS_and_host_error    [@id 3]
+  [@@uint8_t] ]
 
-  let get_payload part v =
-    let shiftlen = match part with
-      | Part_echo -> sizeof_part_echo
-      | Part_unused -> sizeof_part_unused
-      | Part_redirect -> sizeof_part_redirect
-      | Part_destination_unreachable -> sizeof_part_unreachable
-      | Part_timestamp -> sizeof_part_timestamp
-      | Part_address_mask -> sizeof_part_address_mask
-      | Part_bad_ip_header -> sizeof_part_bad_ip_header
-      | Part_router_advertisement -> sizeof_part_router_advertisement
-      | Part_router_advertisement_entry -> sizeof_part_router_advertisement_entry
-    in
-    if (Cstruct.len v) > shiftlen
-    then Some (Cstruct.shift v shiftlen)
-    else None
+  [%%cenum
+  type router_advertisement_code =
+    | Normal_router_advertisement   [@id 0]
+    | Does_not_route_common_traffic [@id 16]
+  [@@uint8_t] ]
 
-  let get_icmpv_hdr_len part =
-    match part with
-    | Part_echo -> sizeof_part_echo + sizeof_icmpv4
-    | Part_unused -> sizeof_part_unused + sizeof_icmpv4
-    | Part_redirect -> sizeof_part_redirect + sizeof_icmpv4
-    | Part_destination_unreachable -> sizeof_part_unreachable + sizeof_icmpv4
-    | Part_timestamp -> sizeof_part_timestamp + sizeof_icmpv4
-    | Part_address_mask -> sizeof_part_address_mask + sizeof_icmpv4
-    | Part_bad_ip_header -> sizeof_part_bad_ip_header + sizeof_icmpv4
-    | Part_router_advertisement -> sizeof_part_router_advertisement + sizeof_icmpv4
-    | Part_router_advertisement_entry -> sizeof_part_router_advertisement + sizeof_part_router_advertisement_entry + sizeof_icmpv4
+  [%%cenum
+  type time_exceeded_code =
+    | Time_to_live_equals_0_during_transit [@id 0]
+    | Fragment_reassembly_timeout          [@id 1]
+  [@@uint8_t] ]
 
-  let is_valid v ty code part =
-    let type_code_ok = match ty with
-    | 0 when code = 0 -> true
-    | 3 when code < 16 -> true
-    | 5 when code < 4 -> true
-    | 8 when code = 0 -> true
-    | 9 when code = 0 -> true
-    | 10 when code = 0 -> true
-    | 11 when code = 0 -> true
-    | 12 when code < 3 -> true
-    | 13 when code = 0 -> true
-    | 14 when code = 0 -> true
-    (* Deprecated *)
-    | 4 when code = 0 -> true
-    | 15 when code = 0 -> true
-    | 16 when code = 0 -> true
-    | 17 when code = 0 -> true
-    | 18 when code = 0 -> true
-    (* Unused *)
-    | _ -> false
-    in
-    let length_ok = (get_icmpv_hdr_len part) <= Cstruct.len v in
-    (* let csum_ok = ... *)
-    type_code_ok && length_ok
+  [%%cenum
+  type bad_ip_header_code =
+    | Invalid_IP_header             [@id 0]
+    | A_required_option_is_missing  [@id 1]
+  [@@uint8_t] ]
 
-  (*TODO: Checksum calculation *)
+  [%%cenum
+  type ty =
+    | ECHO_REPLY               [@id 0]
+    | DESTINATION_UNREACHABLE  [@id 3]
+    | SOURCE_QUENCH            [@id 4]
+    | REDIRECT_MESSAGE         [@id 5]
+    | ECHO_REQUEST             [@id 8]
+    | ROUTER_ADVERTISEMENT     [@id 9]
+    | ROUTER_SOLICITATION     [@id 10]
+    | TIME_EXCEEDED           [@id 11]
+    | BAD_IP_HEADER           [@id 12]
+    | TIMESTAMP               [@id 13]
+    | TIMESTAMP_REPLY         [@id 14]
+  [@@uint8_t] ]
+
+  [%%cenum
+  type default_code =
+    | ZERO                     [@id 0]
+  [@@uint8_t] ]
+
+  let sizeof_part_router_advertisement_total v =
+    let count = get_part_router_advertisement_advertisement_count in
+    let size = get_part_router_advertisement_address_entry_size in
+    size * count + sizeof_part_router_advertisement
+
+  type code =
+    | ECHO_REPLY_CODE of default_code
+    | DESTINATION_UNREACHABLE_CODE of destination_unreachable_code
+    | SOURCE_QUENCH_CODE of default_code
+    | REDIRECT_MESSAGE_CODE of redirect_message_code
+    | ECHO_REQUEST_CODE of default_code
+    | ROUTER_ADVERTISEMENT_CODE of router_advertisement_code
+    | ROUTER_SOLICITATION_CODE of default_code
+    | TIME_EXCEEDED_CODE of time_exceeded_code
+    | BAD_IP_HEADER_CODE of bad_ip_header_code
+    | TIMESTAMP_CODE of default_code
+    | TIMESTAMP_REPLY_CODE of default_code
+
+  let sizeof_ty ty v =
+    sizeof_header + match ty with
+    | ECHO_REPLY -> sizeof_part_echo
+    | DESTINATION_UNREACHABLE -> sizeof_part_unreachable
+    | SOURCE_QUENCH -> sizeof_part_unused
+    | REDIRECT_MESSAGE -> sizeof_part_redirect
+    | ECHO_REQUEST -> sizeof_part_echo
+    | ROUTER_ADVERTISEMENT -> sizeof_part_router_advertisement_total v
+    | ROUTER_SOLICITATION -> sizeof_part_unused
+    | TIME_EXCEEDED -> sizeof_part_unused
+    | BAD_IP_HEADER -> sizeof_part_bad_ip_header
+    | TIMESTAMP -> sizeof_part_timestamp
+    | TIMESTAMP_REPLY -> sizeof_part_timestamp
+
+  let next_protocol ty code v =
+    match ty with
+    | ECHO_REPLY -> Protocols.Unknown
+    | DESTINATION_UNREACHABLE -> Protocols.Protocol Ipv4.Ipv4_packet.protocol_no
+    | SOURCE_QUENCH -> Protocols.Protocol Ipv4.Ipv4_packet.protocol_no
+    | REDIRECT_MESSAGE -> Protocols.Protocol Ipv4.Ipv4_packet.protocol_no
+    | ECHO_REQUEST -> Protocols.Unknown
+    | ROUTER_ADVERTISEMENT -> Protocols.None
+    | ROUTER_SOLICITATION -> Protocols.None
+    | TIME_EXCEEDED -> Protocols.Protocol Ipv4.Ipv4_packet.protocol_no
+    | BAD_IP_HEADER -> Protocols.Protocol Ipv4.Ipv4_packet.protocol_no
+    | TIMESTAMP -> Protocols.None
+    | TIMESTAMP_REPLY -> Protocols.None
+
+  let int_to_code ty code =
+    match ty with
+    | ECHO_REPLY -> 
+        (match int_to_default_code code with
+        | Some c -> Some (ECHO_REPLY_CODE c)
+        | None -> None)
+    | DESTINATION_UNREACHABLE ->
+        (match int_to_destination_unreachable_code code with
+        | Some c -> Some (DESTINATION_UNREACHABLE_CODE c)
+        | None -> None)
+    | SOURCE_QUENCH ->
+        (match int_to_destination_unreachable_code code with
+        | Some c -> Some (DESTINATION_UNREACHABLE_CODE c)
+        | None -> None)
+    | REDIRECT_MESSAGE ->
+        (match int_to_redirect_message_code code with
+        | Some c -> Some (REDIRECT_MESSAGE_CODE c)
+        | None -> None)
+    | ECHO_REQUEST ->
+        (match int_to_default_code code with
+        | Some c -> Some (ECHO_REQUEST_CODE c)
+        | None -> None)
+    | ROUTER_ADVERTISEMENT ->
+        (match int_to_router_advertisement_code code with
+        | Some c -> Some (ROUTER_ADVERTISEMENT_CODE c)
+        | None -> None)
+    | ROUTER_SOLICITATION ->
+        (match int_to_default_code code with
+        | Some c -> Some (ROUTER_SOLICITATION_CODE c)
+        | None -> None)
+    | TIME_EXCEEDED ->
+        (match int_to_time_exceeded_code code with
+        | Some c -> Some (TIME_EXCEEDED_CODE c)
+        | None -> None)
+    | BAD_IP_HEADER ->
+        (match int_to_bad_ip_header_code code with
+        | Some c -> Some (BAD_IP_HEADER_CODE c)
+        | None -> None)
+    | TIMESTAMP ->
+        (match int_to_default_code code with
+        | Some c -> Some (TIMESTAMP_CODE c)
+        | None -> None)
+    | TIMESTAMP_REPLY ->
+        (match int_to_default_code code with
+        | Some c -> Some (TIMESTAMP_REPLY_CODE c)
+        | None -> None)
+
+
+  type icmpv4_packet =
+    {
+    ty: ty;
+    code: code;
+    length: int;
+    next_protocol: Protocols.next_protocol;
+    }
+
+  let parse_packet v =
+    Option.(
+    int_to_ty (get_header_ty v) >>= fun ty ->
+    int_to_code ty (get_header_code v) >>= fun code ->
+    (* TODO: Checksum calculation *)
+    let size = sizeof_ty ty v in
+    let next_protocol = next_protocol ty code v in
+     return ({ty=ty;
+              code=code;
+              length=size;
+              next_protocol=next_protocol})
+    )
 end
-
