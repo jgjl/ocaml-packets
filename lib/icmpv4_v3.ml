@@ -2,96 +2,6 @@
 
 let protocol_no = Protocols.Internet (Stdint.Uint8.of_int 1)
 
-[%%cenum
-type destination_unreachable_code =
-  | Destination_network_unreachable           [@id0]
-  | Destination_host_unreachable              [@id2]
-  | Destination_protocol_unreachable          [@id3]
-  | Destination_port_unreachable              [@id4]
-  | Fragmentation_required_and_DF_flag_set    [@id5]
-  | Source_route_failed                       [@id5]
-  | Destination_network_unknown               [@id6]
-  | Destination_host_unknown                  [@id7]
-  | Source_host_isolated                      [@id8]
-  | Network_administratively_prohibited       [@id9]
-  | Host_administratively_prohibited          [@id10]
-  | Network_unreachable_for_TOS               [@id11]
-  | Host_unreachable_for_TOS                  [@id12]
-  | Communication_administratively_prohibited [@id13]
-  | Host_Precedence_Violation                 [@id14]
-  | Precedence_cutoff_in_effect               [@id15]
-[@@uint8_t] ]
-
-[%%cenum
-type redirect_message_code =
-  | Network_error         [@id 0]
-  | Host_error            [@id 1]
-  | TOS_and_network_error [@id 2]
-  | TOS_and_host_error    [@id 3]
-[@@uint8_t] ]
-
-[%%cenum
-type router_advertisement_code =
-  | Normal_router_advertisement   [@id 0]
-  | Does_not_route_common_traffic [@id 16]
-[@@uint8_t] ]
-
-[%%cenum
-type time_exceeded_code =
-  | Time_to_live_equals_0_during_transit [@id 0]
-  | Fragment_reassembly_timeout          [@id 1]
-[@@uint8_t] ]
-
-[%%cenum
-type bad_ip_header_code =
-  | Invalid_IP_header             [@id 0]
-  | A_required_option_is_missing  [@id 1]
-[@@uint8_t] ]
-
-[%%cenum
-type ty =
-  | ECHO_REPLY               [@id 0]
-  | DESTINATION_UNREACHABLE  [@id 3]
-  | SOURCE_QUENCH            [@id 4]
-  | REDIRECT_MESSAGE         [@id 5]
-  | ECHO_REQUEST             [@id 8]
-  | ROUTER_ADVERTISEMENT     [@id 9]
-  | ROUTER_SOLICITATION     [@id 10]
-  | TIME_EXCEEDED           [@id 11]
-  | BAD_IP_HEADER           [@id 12]
-  | TIMESTAMP               [@id 13]
-  | TIMESTAMP_REPLY         [@id 14]
-[@@uint8_t] ]
-
-[%%cenum
-type default_code =
-  | ZERO                     [@id 0]
-[@@uint8_t] ]
-
-
-type structure =
-  | ECHO_REPLY of default_code
-  | DESTINATION_UNREACHABLE of destination_unreachable_code
-  | SOURCE_QUENCH of default_code
-  | REDIRECT_MESSAGE of redirect_message_code
-  | ECHO_REQUEST of default_code
-  | ROUTER_ADVERTISEMENT of router_advertisement_code
-  | ROUTER_SOLICITATION of default_code
-  | TIME_EXCEEDED of time_exceeded_code
-  | BAD_IP_HEADER of bad_ip_header_code
-  | TIMESTAMP of default_code
-  | TIMESTAMP_REPLY of default_code
-
-module type Icmpv4_type = sig
-  val ty : ty
-  type code
-  type field
-  val get_field : field -> int
-  val set_field : field -> int -> unit
-  val sizeof : Cstruct.t -> int
-  val get_next_protocol : Cstruct.t -> Protocols.next_protocol
-end
-
 module WireV2 = struct
 
   type t = Cstruct.t
@@ -114,16 +24,105 @@ module WireV2 = struct
     ]
   end
 
-  module Destination_unreachable = struct
+  [%%cenum
+  type destination_unreachable_code =
+    | Destination_network_unreachable           [@id0]
+    | Destination_host_unreachable              [@id1]
+    | Destination_protocol_unreachable          [@id2]
+    | Destination_port_unreachable              [@id3]
+    | Fragmentation_required_and_DF_flag_set    [@id4]
+    | Source_route_failed                       [@id5]
+    | Destination_network_unknown               [@id6]
+    | Destination_host_unknown                  [@id7]
+    | Source_host_isolated                      [@id8]
+    | Network_administratively_prohibited       [@id9]
+    | Host_administratively_prohibited          [@id10]
+    | Network_unreachable_for_TOS               [@id11]
+    | Host_unreachable_for_TOS                  [@id12]
+    | Communication_administratively_prohibited [@id13]
+    | Host_Precedence_Violation                 [@id14]
+    | Precedence_cutoff_in_effect               [@id15]
+  [@@uint8_t] ]
+
+  [%%cenum
+  type redirect_message_code =
+    | Network_error         [@id 0]
+    | Host_error            [@id 1]
+    | TOS_and_network_error [@id 2]
+    | TOS_and_host_error    [@id 3]
+  [@@uint8_t] ]
+
+  [%%cenum
+  type router_advertisement_code =
+    | Normal_router_advertisement   [@id 0]
+    | Does_not_route_common_traffic [@id 16]
+  [@@uint8_t] ]
+
+  [%%cenum
+  type time_exceeded_code =
+    | Time_to_live_equals_0_during_transit [@id 0]
+    | Fragment_reassembly_timeout          [@id 1]
+  [@@uint8_t] ]
+
+  [%%cenum
+  type bad_ip_header_code =
+    | Invalid_IP_header             [@id 0]
+    | A_required_option_is_missing  [@id 1]
+  [@@uint8_t] ]
+
+  [%%cenum
+  type ty =
+    | ECHO_REPLY               [@id 0]
+    | DESTINATION_UNREACHABLE  [@id 3]
+    | SOURCE_QUENCH            [@id 4]
+    | REDIRECT_MESSAGE         [@id 5]
+    | ECHO_REQUEST             [@id 8]
+    | ROUTER_ADVERTISEMENT     [@id 9]
+    | ROUTER_SOLICITATION     [@id 10]
+    | TIME_EXCEEDED           [@id 11]
+    | BAD_IP_HEADER           [@id 12]
+    | TIMESTAMP               [@id 13]
+    | TIMESTAMP_REPLY         [@id 14]
+  [@@uint8_t] ]
+
+  [%%cenum
+  type default_code =
+    | ZERO                     [@id 0]
+  [@@uint8_t] ]
+
+  type code =
+    | ECHO_REPLY of default_code
+    | DESTINATION_UNREACHABLE of destination_unreachable_code
+    | SOURCE_QUENCH of default_code
+    | REDIRECT_MESSAGE of redirect_message_code
+    | ECHO_REQUEST of default_code
+    | ROUTER_ADVERTISEMENT of router_advertisement_code
+    | ROUTER_SOLICITATION of default_code
+    | TIME_EXCEEDED of time_exceeded_code
+    | BAD_IP_HEADER of bad_ip_header_code
+    | TIMESTAMP of default_code
+    | TIMESTAMP_REPLY of default_code
+
+  type icmpv4_packet =
+    {
+    ty: ty;
+    code: code;
+    length: int;
+    next_protocol: Protocols.next_protocol;
+    }
+
+end
+
+(*
+  module type Icmpv4_type = sig
+    val ty : ty
+    type code
+    type field
+    val get_field : field -> int
+    val set_field : field -> int -> unit
+    val sizeof : Cstruct.t -> int
+    val get_next_protocol : Cstruct.t -> Protocols.next_protocol
   end
-    | Echo of [`identifier | `sequence_no]
-    | Dst_unreach of [`next_hop_mtu]
-    | Empty
-    | Redir_msg of [`address]
-    | Rtr_adv of [`addr_cnt|`addr_entry_size|`lifetime|`rtr_addr|`rtr_pref_lvl]
-    | Bad_ip_hdr of [`pointer]
-    | Timestamp of [`identifier|`sequence_no|`orig_ts|`rx_ts|`tx_ts]
-  
 
   type fields =
     | Type
@@ -337,7 +336,6 @@ module Parser = struct
     | TIMESTAMP_REPLY when code=0 -> Some "Timestamp reply"
     | _ -> None
 
-  (*
   type structure =
     | Field of fields
     | Option of fields list
@@ -398,3 +396,5 @@ module Parser = struct
     | _, _ -> Protocols.None, None
     *)
 end
+
+*)
