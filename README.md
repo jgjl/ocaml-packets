@@ -19,9 +19,14 @@ Nail aims solely at providing an API/DSL for describing packet formats. The exam
 
 Nail seems more promising, let's see if this approach can be build with Ocaml and ppx.
 
+New idea: why not use Yang [3]? It is widely used in networking, tools are available [4], and seems to be capable to express all required packet characteristics.
+
 Code references:
 
 [1] https://github.com/p4lang/tutorials/blob/master/examples/TLV_parsing/p4src/TLV_parsing.p4
 
 [2] https://github.com/jbangert/nail/blob/master/examples/dns/dns.nail
 
+[3] http://yang-central.org/twiki/bin/view/Main/InetTypesHtml
+
+[4] https://github.com/mbj4668/pyang
