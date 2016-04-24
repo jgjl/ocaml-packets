@@ -21,6 +21,10 @@ Nail seems more promising, let's see if this approach can be build with Ocaml an
 
 New idea: why not use Yang [3]? It is widely used in networking, tools are available [4], and seems to be capable to express all required packet characteristics.
 
+More yang links:
+
+ - http://www.ietf.org/edu/technical-tutorials.html#netconfandyang
+
 Code references:
 
 [1] https://github.com/p4lang/tutorials/blob/master/examples/TLV_parsing/p4src/TLV_parsing.p4
