@@ -24,6 +24,10 @@ New idea: why not use Yang [3]? It is widely used in networking, tools are avail
 More yang links:
 
  - http://www.ietf.org/edu/technical-tutorials.html#netconfandyang
+ 
+Another approach is Katai, a system to develop parsers for binary structures:
+
+ - http://kaitai.io/
 
 Code references:
 
