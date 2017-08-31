@@ -1,5 +1,5 @@
 PKG cstruct
-PKG cstruct.ppx
+PKG ppx_cstruct
 PKG io-page
 PKG stdint
 PKG oUnit

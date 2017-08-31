@@ -32,7 +32,6 @@ let inet_csum_packet fields_names result_field packet =
    * *)
   0
 
-  (*
 let checksum =
   let pbuf = Io_page.to_cstruct (Io_page.get 1) in
   let pbuf = Cstruct.set_len pbuf 4 in
@@ -42,4 +41,3 @@ let checksum =
     Cstruct.BE.set_uint16 pbuf 2 (Cstruct.lenv bufs);
     let src_dst = Cstruct.sub packet 12 (2 * 4) in
     Tcpip_checksum.ones_complement_list (src_dst :: pbuf :: bufs)
-    *)

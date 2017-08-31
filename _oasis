@@ -64,6 +64,14 @@ Library udp
   Modules:            Udp
   BuildDepends:       packets,io-page,cstruct,cstruct.ppx,stdint
 
+Library mpls
+  CompiledObject:     best
+  Path:               lib
+  Findlibparent:      packets
+  Findlibname:        mpls
+  Modules:            Mpls
+  BuildDepends:       packets,io-page,cstruct,cstruct.ppx,stdint
+
 Library tcp
   CompiledObject:     best
   Path:               lib
