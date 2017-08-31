@@ -5,6 +5,7 @@ PKG stdint
 PKG oUnit
 PKG alcotest
 PKG pcap-format
+FLG -ppx '~/.opam/4.05.0/lib/ppx_cstruct/ppx.exe --as-ppx'
 
 B _build/**
 S lib/

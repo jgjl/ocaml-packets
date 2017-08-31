@@ -8,12 +8,12 @@ Authors:     Anil Madhavapeddy, Balraj Singh, Richard Mortier,
 License:     ISC
 Plugins:     META (0.4), DevFiles (0.4)
 BuildTools:  ocamlbuild
-PostConfCommand: ocaml postconf.ml
 
 Library packets
   CompiledObject:     best
   Path:               lib
-  Modules:            Checksum, Protocols
+  #Modules:            Checksum, Protocols
+  Modules:            Protocols
   Findlibname:        packets
 
 Library ethernet
@@ -22,7 +22,7 @@ Library ethernet
   Findlibparent:      packets
   Findlibname:        ethernet
   Modules:            Ethernet
-  BuildDepends:       io-page,cstruct,cstruct.ppx
+  BuildDepends:       io-page,cstruct,ppx_cstruct
 
 Library arpv4
   CompiledObject:     best
@@ -30,7 +30,7 @@ Library arpv4
   Findlibparent:      packets
   Findlibname:        arpv4
   Modules:            Arpv4
-  BuildDepends:       packets,io-page,cstruct,cstruct.ppx,stdint
+  BuildDepends:       packets,io-page,cstruct,ppx_cstruct,stdint
 
 Library ipv4
   CompiledObject:     best
@@ -38,7 +38,7 @@ Library ipv4
   Findlibparent:      packets
   Findlibname:        ipv4
   Modules:            Ipv4
-  BuildDepends:       packets,io-page,cstruct,cstruct.ppx,stdint
+  BuildDepends:       packets,io-page,cstruct,ppx_cstruct,stdint
 
 Library ipv6
   CompiledObject:     best
@@ -46,7 +46,7 @@ Library ipv6
   Findlibparent:      packets
   Findlibname:        arpv6
   Modules:            Ipv6
-  BuildDepends:       packets,io-page,cstruct,cstruct.ppx,stdint
+  BuildDepends:       packets,io-page,cstruct,ppx_cstruct,stdint
 
 Library icmpv4
   CompiledObject:     best
@@ -54,7 +54,7 @@ Library icmpv4
   Findlibparent:      packets
   Findlibname:        icmpv4
   Modules:            Icmpv4
-  BuildDepends:       packets,io-page,cstruct,cstruct.ppx,stdint
+  BuildDepends:       packets,io-page,cstruct,ppx_cstruct,stdint
 
 Library udp
   CompiledObject:     best
@@ -62,7 +62,7 @@ Library udp
   Findlibparent:      packets
   Findlibname:        udp
   Modules:            Udp
-  BuildDepends:       packets,io-page,cstruct,cstruct.ppx,stdint
+  BuildDepends:       packets,io-page,cstruct,ppx_cstruct,stdint
 
 Library mpls
   CompiledObject:     best
@@ -70,7 +70,7 @@ Library mpls
   Findlibparent:      packets
   Findlibname:        mpls
   Modules:            Mpls
-  BuildDepends:       packets,io-page,cstruct,cstruct.ppx,stdint
+  BuildDepends:       packets,io-page,cstruct,ppx_cstruct,stdint
 
 Library tcp
   CompiledObject:     best
@@ -78,7 +78,7 @@ Library tcp
   Findlibparent:      packets
   Findlibname:        tcp
   Modules:            Tcp
-  BuildDepends:       packets,io-page,cstruct,cstruct.ppx,stdint
+  BuildDepends:       packets,io-page,cstruct,ppx_cstruct,stdint
 
 #Executable test
 #  CompiledObject:     best
