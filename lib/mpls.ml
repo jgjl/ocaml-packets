@@ -40,3 +40,4 @@ module Mpls_packet = struct
                         else raise (ParseError "BOS value not in valid range.") in
     Cstruct.set_uint8 buf 2 ((Cstruct.get_uint8 buf 2) lor checked_bos)
 end
+

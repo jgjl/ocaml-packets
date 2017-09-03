@@ -1,0 +1,7 @@
+(jbuild_version 1)
+(library
+ ((name        ocaml_packets)
+  (public_name ocaml_packets)
+  (libraries   (io-page cstruct stdint))
+  (preprocess (pps (ppx_cstruct)))
+  (wrapped false)))

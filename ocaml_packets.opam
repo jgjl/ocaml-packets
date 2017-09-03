@@ -1,0 +1,31 @@
+opam-version: "1.2"
+maintainer:   "=@jgjl.de"
+homepage:     "https://github.com/jgjl/ocaml-packets"
+dev-repo:     "https://github.com/jgjl/ocaml-packets.git"
+bug-reports:  "https://github.com/jgjl/ocaml-packets/issues"
+authors: [
+  "Anil Madhavapeddy" "Balraj Singh" "Richard Mortier" "Nicolas Ojeda Bar"
+  "Thomas Gazagnaire" "Vincent Bernardoff" "Magnus Skjegstad" "Mindy Preston"
+  "Thomas Leonard" "David Scott" "Gabor Pali" "Hannes Mehnert" "Haris Rotsos"
+  "Kia" "Luke Dunstan" "Pablo Polvorin" "Tim Cuthbertson" "lnmx" "pqwy" 
+  "Jeremias Blendin" ]
+license: "ISC"
+
+build: [
+  ["jbuilder" "subst"] {pinned}
+  ["jbuilder" "build" "-p" name "-j" jobs]
+]
+build-test: [
+  ["jbuilder" "runtest" "-p" name "-j" jobs]
+]
+
+depends: [
+  "jbuilder"     {build & >="1.0+beta10"}
+  "configurator" {build}
+  "rresult"
+  "cstruct" {>= "3.0.2"}
+  "io-page-unix"
+  "alcotest" {test & >="0.7.0"}
+  "pcap-format" {test}
+]
+available: [ocaml-version >= "4.03.0"]
