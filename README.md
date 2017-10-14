@@ -9,6 +9,10 @@ of `mirage-tcpip` into its own library.
 
 ### Packet format description API
 
+Something very similar seems to exist already, investigate:
+
+  https://github.com/smondet/promiwag
+
 Two recent papers on packet format description  where identified:
  - P4: Bosshart, Pat, et al. "P4: Programming protocol-independent packet processors." ACM SIGCOMM Computer Communication Review 44.3 (2014): 87-95.
  - Nail: Bangert, Julian, and Nickolai Zeldovich. "Nail: A practical tool for parsing and generating data formats." 11th USENIX Symposium on Operating Systems Design and Implementation (OSDI 14). 2014.
